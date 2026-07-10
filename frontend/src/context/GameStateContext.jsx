@@ -1,7 +1,7 @@
 /* eslint-disable react-refresh/only-export-components */
 import { createContext, useContext, useState, useEffect } from 'react';
 
-const GameStateContext = createContext();
+const GameStateContext = createContext(undefined);
 
 const defaultUser = {
   isAuthenticated: false,
@@ -19,7 +19,8 @@ export const GameStateProvider = ({ children }) => {
     try {
       const saved = localStorage.getItem('popcornclash_user');
       return saved ? JSON.parse(saved) : defaultUser;
-    } catch {
+    } catch (error) {
+      console.error("Failed to parse user state from localStorage:", error);
       return defaultUser;
     }
   });
@@ -29,6 +30,7 @@ export const GameStateProvider = ({ children }) => {
   }, [user]);
 
   const logout = () => {
+    localStorage.removeItem('popcornclash_user'); // Fast, synchronous removal
     setUser(defaultUser);
   };
 
@@ -39,4 +41,10 @@ export const GameStateProvider = ({ children }) => {
   );
 };
 
-export const useGame = () => useContext(GameStateContext);
+export const useGame = () => {
+  const context = useContext(GameStateContext);
+  if (!context) {
+    throw new Error('useGame must be used within a GameStateProvider');
+  }
+  return context;
+};
