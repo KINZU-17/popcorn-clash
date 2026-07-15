@@ -21,21 +21,24 @@ export default function DiscoverView({ onAddMovieToLibrary, searchQueryFromHeade
         results = await fetchMovies({ query, genre });
       }
       setMovies(results);
+    } catch (error) {
+      console.error("Error loading movies:", error);
     } finally {
       setLoading(false);
     }
   }, []);
 
-  // Initial load — popular movies
-  // eslint-disable-next-line react-hooks/set-state-in-effect
-  useEffect(() => { loadMovies(); }, [loadMovies]);
-
-  // Header search bar drives search
-  /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => {
-    if (searchQueryFromHeader) loadMovies(searchQueryFromHeader, '');
+    const timer = setTimeout(() => {
+      if (searchQueryFromHeader) {
+        loadMovies(searchQueryFromHeader, '');
+      } else {
+        loadMovies(searchKeyword, selectedGenre);
+      }
+    }, 0);
+
+    return () => clearTimeout(timer);
   }, [searchQueryFromHeader, loadMovies]);
-  /* eslint-enable react-hooks/set-state-in-effect */
 
   const handleSearch = () => loadMovies(searchKeyword, selectedGenre);
 
@@ -54,14 +57,16 @@ export default function DiscoverView({ onAddMovieToLibrary, searchQueryFromHeade
 
       <div className="flex flex-col sm:flex-row gap-3">
         <input
-          type="text" value={searchKeyword}
+          type="text" 
+          value={searchKeyword}
           onChange={(e) => setSearchKeyword(e.target.value)}
           onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
           placeholder="Search by title, genre, or keyword..."
           className="flex-1 bg-white/5 border-b border-white/10 focus:border-white px-3 py-2 text-xs text-white placeholder-white/30 outline-none transition-colors"
         />
         <select
-          value={selectedGenre} onChange={(e) => setSelectedGenre(e.target.value)}
+          value={selectedGenre} 
+          onChange={(e) => setSelectedGenre(e.target.value)}
           className="bg-white/5 border-b border-white/10 focus:border-white px-3 py-2 text-xs text-white cursor-pointer outline-none transition-colors"
         >
           {GENRES.map(g => <option key={g} value={g} className="bg-black text-white">{g}</option>)}

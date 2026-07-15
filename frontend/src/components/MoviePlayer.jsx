@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { Play, Pause, SkipBack, SkipForward, Volume2, VolumeX, X, MessageSquare, Tv2 } from 'lucide-react';
+import { Play, Pause, SkipBack, SkipForward, Volume2, VolumeX, X, MessageSquare, Tv2, ExternalLink } from 'lucide-react';
 import { fetchStreamingLinks } from '../utils/streamingApi';
 
 const SUBTITLES_BY_GENRE = {
@@ -27,12 +27,21 @@ export default function MoviePlayer({ movie, onClose, onProgressUpdate }) {
   const canvasRef = useRef(null);
   const gainsRef = useRef([]);
 
-  // Fetch streaming links once on mount
+  // Strip all non-digits to get a clean numeric TMDB ID lookup string
+  const cleanTmdbId = String(movie.tmdbId || movie.id).replace(/\D/g, '');
+  const targetRedirectUrl = `https://vidsrc.to/embed/movie/${cleanTmdbId}`;
+
+  // Automatically trigger the search redirect on mount
   useEffect(() => {
-    if (movie.tmdbId) {
-      fetchStreamingLinks(movie.tmdbId).then(setStreamingLinks);
+    window.open(targetRedirectUrl, '_blank', 'noopener,noreferrer');
+  }, [targetRedirectUrl]);
+
+  // Fetch alternative streaming links once on mount
+  useEffect(() => {
+    if (cleanTmdbId) {
+      fetchStreamingLinks(cleanTmdbId).then(setStreamingLinks);
     }
-  }, [movie.tmdbId]);
+  }, [cleanTmdbId]);
 
   // Progress simulation
   useEffect(() => {
@@ -48,17 +57,15 @@ export default function MoviePlayer({ movie, onClose, onProgressUpdate }) {
     return () => clearInterval(interval);
   }, [isPlaying, speed, progress]);
 
-  // Subtitles
-  /* eslint-disable react-hooks/set-state-in-effect */
+  // Subtitles calculation based on progression index
   useEffect(() => {
     if (!subtitlesEnabled) { setCurrentSubtitle(''); return; }
     const set = SUBTITLES_BY_GENRE[movie.genre] || SUBTITLES_BY_GENRE['Default'];
     const idx = Math.floor((progress / 100) * set.length);
     setCurrentSubtitle(set[Math.min(idx, set.length - 1)]);
   }, [progress, subtitlesEnabled, movie.genre]);
-  /* eslint-enable react-hooks/set-state-in-effect */
 
-  // Canvas projector — fixed: cancelAnimationFrame on cleanup
+  // Canvas projector visual backdrop effects
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -107,7 +114,7 @@ export default function MoviePlayer({ movie, onClose, onProgressUpdate }) {
     return () => { cancelAnimationFrame(rafId); window.removeEventListener('resize', resize); };
   }, [isPlaying, lightingMode, movie.genre]);
 
-  // Web Audio — fixed: removed unused filterGain, removed volume/isMuted from deps
+  // Web Audio Context Synthesizer
   useEffect(() => {
     if (!showCinemaSound || !isPlaying) return;
     const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
@@ -136,7 +143,6 @@ export default function MoviePlayer({ movie, onClose, onProgressUpdate }) {
     };
   }, [showCinemaSound, isPlaying, movie.genre, isMuted, volume]);
 
-  // Update gain imperatively — avoids restarting audio context on volume/mute change
   useEffect(() => {
     const gain = gainsRef.current[0];
     if (gain) gain.gain.value = (volume / 100) * (isMuted ? 0 : 0.15);
@@ -206,10 +212,12 @@ export default function MoviePlayer({ movie, onClose, onProgressUpdate }) {
       <canvas ref={canvasRef} className="absolute inset-0 w-full h-full" />
 
       <div className="relative z-10 w-full h-full flex flex-col justify-between p-4 md:p-8">
+        
+        {/* Top bar details */}
         <div className="flex items-center justify-between">
           <div>
             <h2 className="text-xl md:text-3xl font-serif font-light italic text-white">{movie.title}</h2>
-            <p className="text-xs md:text-sm text-white/60 mt-2">{movie.year} • {movie.genre} • {movie.duration}</p>
+            <p className="text-xs md:text-sm text-white/60 mt-2">{movie.year} • {movie.genre} • {movie.duration || '2h 15m'}</p>
           </div>
           <div className="flex items-center gap-2">
             {streamingLinks.length > 0 && (
@@ -228,6 +236,7 @@ export default function MoviePlayer({ movie, onClose, onProgressUpdate }) {
           </div>
         </div>
 
+        {/* Where to Watch Dropdown Container */}
         {showWhereToWatch && streamingLinks.length > 0 && (
           <div className="absolute top-20 right-4 md:right-8 z-20 bg-black/80 border border-white/20 backdrop-blur-sm p-4 min-w-[220px]">
             <p className="text-[9px] uppercase tracking-[0.2em] text-white/40 font-mono mb-3">Stream This Film On</p>
@@ -243,14 +252,32 @@ export default function MoviePlayer({ movie, onClose, onProgressUpdate }) {
           </div>
         )}
 
-        <div className="text-center">
-          {subtitlesEnabled && currentSubtitle && (
-            <p className="text-sm md:text-base text-white font-light italic bg-black/40 px-6 py-3 inline-block rounded-full">
-              {currentSubtitle}
+        {/* Redirect Interactive Display Panel */}
+        <div className="w-full max-w-xl mx-auto border border-white/10 bg-zinc-900/80 p-8 rounded-xl shadow-2xl backdrop-blur text-center space-y-6">
+          <div className="w-16 h-16 bg-white/5 border border-white/10 text-white rounded-full flex items-center justify-center mx-auto animate-pulse">
+            <ExternalLink className="w-6 h-6" />
+          </div>
+          
+          <div className="space-y-2">
+            <h3 className="text-lg font-medium text-white">Opening External Media Player</h3>
+            <p className="text-xs text-white/50 max-w-sm mx-auto">
+              We've triggered the video player link in a separate window to prevent internal iframe embedding restrictions.
             </p>
-          )}
+          </div>
+
+          <div className="pt-2">
+            <a 
+              href={targetRedirectUrl} 
+              target="_blank" 
+              rel="noopener noreferrer" 
+              className="inline-flex items-center gap-2 px-6 py-3 bg-white hover:bg-neutral-200 text-black text-xs font-bold uppercase tracking-wider transition-all rounded shadow-lg"
+            >
+              Click Here to Resume Playback
+            </a>
+          </div>
         </div>
 
+        {/* Timeline Control Trackers */}
         <div className="space-y-4">
           <div className="space-y-2">
             <input
@@ -313,6 +340,7 @@ export default function MoviePlayer({ movie, onClose, onProgressUpdate }) {
             </button>
           </div>
         </div>
+
       </div>
     </div>
   );
