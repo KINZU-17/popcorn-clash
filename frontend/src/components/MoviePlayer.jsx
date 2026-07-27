@@ -1,347 +1,222 @@
 import { useState, useEffect, useRef } from 'react';
-import { Play, Pause, SkipBack, SkipForward, Volume2, VolumeX, X, MessageSquare, Tv2, ExternalLink } from 'lucide-react';
-import { fetchStreamingLinks } from '../utils/streamingApi';
+import { X, ShieldCheck, RefreshCw, Maximize2, Star, Sparkles, AlertTriangle } from 'lucide-react';
 
-const SUBTITLES_BY_GENRE = {
-  'Sci-Fi': ['Initiating quantum jump protocol...', 'Atmospheric readings nominal.', 'Cosmic interference detected.', 'Warping through dimensional gateway...', 'Stellar engines at full capacity.', 'Alien transmission intercepted.', 'Systems online.', 'Navigation locked on target.'],
-  'Thriller': ['Something is not right here.', 'Trust no one.', 'The truth is hidden.', 'Time is running out.', 'No way out.', 'Someone is watching.', 'Danger everywhere.', 'Expect the unexpected.'],
-  'Action': ['Time to take action!', 'Ready for combat.', 'Enemies approaching!', 'Operation initiated.', 'Target locked.', 'Weapons hot.', 'Moving to position.', 'Mission critical.'],
-  'Animation': ['What a wonderful world!', 'Magic surrounds us.', 'Adventure awaits!', 'Dream big.', 'Believe in yourself.', 'Together anything is possible!', 'Look at the bright side!', 'Never give up!'],
-  'Default': ['Beautiful scene.', 'Remarkable moment.', 'Cinematic brilliance.', 'Pure artistry.', 'Unforgettable.', 'A masterpiece.', 'Stunning visuals.', 'Breathtaking.']
-};
+// ─── Movie Servers (TMDB ID) ───
+const MOVIE_SERVERS = [
+  { id: 'vidsrc-cc', name: 'VidSrc.cc', getUrl: (id) => `https://vidsrc.cc/v2/embed/movie/${id}` },
+  { id: 'vidsrc-me', name: 'VidSrc.me', getUrl: (id) => `https://vidsrc.me/embed/movie/${id}` },
+  { id: 'vidlink', name: 'VidLink', getUrl: (id) => `https://vidlink.pro/movie/${id}` },
+  { id: 'vidsrc-in', name: 'VidSrc.in', getUrl: (id) => `https://vidsrc.in/embed/movie/${id}` },
+  { id: 'vidsrc-pm', name: 'VidSrc.pm', getUrl: (id) => `https://vidsrc.pm/embed/movie/${id}` },
+  { id: 'multiembed', name: 'MultiEmbed', getUrl: (id) => `https://multiembed.mov/?video_id=${id}&tmdb=1` },
+  { id: 'autoembed', name: 'AutoEmbed', getUrl: (id) => `https://autoembed.co/movie/tmdb/${id}` },
+  { id: 'vidsrc-to', name: 'VidSrc.to', getUrl: (id) => `https://vidsrc.to/embed/movie/${id}` },
+  { id: '2embed', name: '2Embed', getUrl: (id) => `https://www.2embed.cc/embed/${id}` },
+];
+
+// ─── Anime Servers ───
+const ANIME_SERVERS_SUB = [
+  { id: 'vidsrc-cc-anime', name: 'VidSrc.cc (SUB)', getUrl: (id, ep) => `https://vidsrc.cc/v2/embed/tv/${id}/1/${ep}` },
+  { id: 'vidsrc-me-anime', name: 'VidSrc.me (SUB)', getUrl: (id, ep) => `https://vidsrc.me/embed/tv/${id}/1/${ep}` },
+  { id: 'vidlink-anime', name: 'VidLink (SUB)', getUrl: (id, ep) => `https://vidlink.pro/tv/${id}/1/${ep}` },
+  { id: 'vidsrc-in-anime', name: 'VidSrc.in (SUB)', getUrl: (id, ep) => `https://vidsrc.in/embed/tv/${id}/1/${ep}` },
+  { id: 'vidsrc-pm-anime', name: 'VidSrc.pm (SUB)', getUrl: (id, ep) => `https://vidsrc.pm/embed/tv/${id}/1/${ep}` },
+  { id: 'multiembed-anime', name: 'MultiEmbed (SUB)', getUrl: (id, ep) => `https://multiembed.mov/?video_id=${id}&tmdb=1&s=1&e=${ep}` },
+  { id: 'vidsrc-to-anime', name: 'VidSrc.to (SUB)', getUrl: (id, ep) => `https://vidsrc.to/embed/tv/${id}/1/${ep}` },
+  { id: '2embed-anime', name: '2Embed (SUB)', getUrl: (id, ep) => `https://www.2embed.cc/embedtv/${id}&s=1&e=${ep}` },
+];
+
+const ANIME_SERVERS_DUB = [
+  { id: 'vidsrc-cc-dub', name: 'VidSrc.cc (DUB)', getUrl: (id, ep) => `https://vidsrc.cc/v2/embed/tv/${id}/1/${ep}` },
+  { id: 'vidsrc-me-dub', name: 'VidSrc.me (DUB)', getUrl: (id, ep) => `https://vidsrc.me/embed/tv/${id}/1/${ep}` },
+  { id: 'vidlink-dub', name: 'VidLink (DUB)', getUrl: (id, ep) => `https://vidlink.pro/tv/${id}/1/${ep}?ds_lang=en` },
+  { id: 'vidsrc-in-dub', name: 'VidSrc.in (DUB)', getUrl: (id, ep) => `https://vidsrc.in/embed/tv/${id}/1/${ep}` },
+  { id: 'vidsrc-pm-dub', name: 'VidSrc.pm (DUB)', getUrl: (id, ep) => `https://vidsrc.pm/embed/tv/${id}/1/${ep}` },
+  { id: 'multiembed-dub', name: 'MultiEmbed (DUB)', getUrl: (id, ep) => `https://multiembed.mov/?video_id=${id}&tmdb=1&s=1&e=${ep}` },
+  { id: 'vidsrc-to-dub', name: 'VidSrc.to (DUB)', getUrl: (id, ep) => `https://vidsrc.to/embed/tv/${id}/1/${ep}` },
+  { id: '2embed-dub', name: '2Embed (DUB)', getUrl: (id, ep) => `https://www.2embed.cc/embedtv/${id}&s=1&e=${ep}` },
+];
 
 export default function MoviePlayer({ movie, onClose, onProgressUpdate }) {
-  const [isPlaying, setIsPlaying] = useState(true);
-  const [progress, setProgress] = useState(movie.progress || 0);
-  const [volume, setVolume] = useState(70);
-  const [isMuted, setIsMuted] = useState(false);
-  const [speed, setSpeed] = useState('1x');
-  const [subtitlesEnabled, setSubtitlesEnabled] = useState(true);
-  const [currentSubtitle, setCurrentSubtitle] = useState('');
-  const [lightingMode, setLightingMode] = useState('glow');
-  const [showCinemaSound, setShowCinemaSound] = useState(true);
-  const [showCompletion, setShowCompletion] = useState(false);
-  const [streamingLinks, setStreamingLinks] = useState([]);
-  const [showWhereToWatch, setShowWhereToWatch] = useState(false);
+  const isAnime = String(movie?.id || '').startsWith('anime-') || Boolean(movie?.isAnime);
+  const [isDub, setIsDub] = useState(false);
 
-  const canvasRef = useRef(null);
-  const gainsRef = useRef([]);
+  const activeServers = isAnime ? (isDub ? ANIME_SERVERS_DUB : ANIME_SERVERS_SUB) : MOVIE_SERVERS;
 
-  // Strip all non-digits to get a clean numeric TMDB ID lookup string
-  const cleanTmdbId = String(movie.tmdbId || movie.id).replace(/\D/g, '');
-  const targetRedirectUrl = `https://vidsrc.to/embed/movie/${cleanTmdbId}`;
+  const [selectedServer, setSelectedServer] = useState(activeServers[0]);
+  const [activeEpisode, setActiveEpisode] = useState(1);
+  const [isLoading, setIsLoading] = useState(true);
+  const playerContainerRef = useRef(null);
 
-  // Automatically trigger the search redirect on mount
+  const cleanTmdbId = String(movie?.tmdbId || movie?.id || '').replace(/\D/g, '') || '105825'; 
+  const totalEpisodes = isAnime ? parseInt(movie?.episodes || 24, 10) : 1;
+
   useEffect(() => {
-    window.open(targetRedirectUrl, '_blank', 'noopener,noreferrer');
-  }, [targetRedirectUrl]);
+    const servers = isAnime ? (isDub ? ANIME_SERVERS_DUB : ANIME_SERVERS_SUB) : MOVIE_SERVERS;
+    setSelectedServer(servers[0]);
+    setIsLoading(true);
+  }, [movie?.id, isDub, isAnime]);
 
-  // Fetch alternative streaming links once on mount
-  useEffect(() => {
-    if (cleanTmdbId) {
-      fetchStreamingLinks(cleanTmdbId).then(setStreamingLinks);
+  const handleServerChange = (server) => {
+    setSelectedServer(server);
+    setIsLoading(true);
+  };
+
+  const toggleFullscreen = () => {
+    if (!playerContainerRef.current) return;
+    if (!document.fullscreenElement) {
+      playerContainerRef.current.requestFullscreen().catch(() => {});
+    } else {
+      document.exitFullscreen().catch(() => {});
     }
-  }, [cleanTmdbId]);
-
-  // Progress simulation
-  useEffect(() => {
-    if (!isPlaying || progress >= 100) return;
-    const speedMultiplier = { '1x': 1, '2x': 2, '5x': 5 }[speed] || 1;
-    const interval = setInterval(() => {
-      setProgress(prev => {
-        const next = prev + 0.8 * speedMultiplier;
-        if (next >= 100) { setIsPlaying(false); setShowCompletion(true); return 100; }
-        return next;
-      });
-    }, 1000);
-    return () => clearInterval(interval);
-  }, [isPlaying, speed, progress]);
-
-  // Subtitles calculation based on progression index
-  useEffect(() => {
-    if (!subtitlesEnabled) { setCurrentSubtitle(''); return; }
-    const set = SUBTITLES_BY_GENRE[movie.genre] || SUBTITLES_BY_GENRE['Default'];
-    const idx = Math.floor((progress / 100) * set.length);
-    setCurrentSubtitle(set[Math.min(idx, set.length - 1)]);
-  }, [progress, subtitlesEnabled, movie.genre]);
-
-  // Canvas projector visual backdrop effects
-  useEffect(() => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    const ctx = canvas.getContext('2d');
-    const resize = () => { canvas.width = window.innerWidth; canvas.height = window.innerHeight; };
-    resize();
-    window.addEventListener('resize', resize);
-
-    const genreColors = {
-      'Sci-Fi': [0, 200, 255], 'Thriller': [200, 50, 50], 'Action': [255, 150, 0],
-      'Animation': [150, 100, 200], 'Drama': [100, 150, 180], 'Horror': [100, 0, 50]
-    };
-    const [r, g, b] = genreColors[movie.genre] || [100, 100, 100];
-    let rafId;
-
-    const animate = () => {
-      if (lightingMode === 'pitch-black') {
-        ctx.fillStyle = 'rgba(0,0,0,1)';
-        ctx.fillRect(0, 0, canvas.width, canvas.height);
-      } else {
-        ctx.fillStyle = lightingMode === 'dimmed' ? 'rgba(0,0,0,0.6)' : 'rgba(0,0,0,0.3)';
-        ctx.fillRect(0, 0, canvas.width, canvas.height);
-        const cx = canvas.width / 2, cy = canvas.height / 2;
-        const alpha = lightingMode === 'glow' ? 0.15 : 0.05;
-        ctx.fillStyle = `rgba(${r},${g},${b},${alpha})`;
-        ctx.beginPath();
-        ctx.ellipse(cx, cy, canvas.width * 0.6, canvas.height * 0.5, 0, 0, Math.PI * 2);
-        ctx.fill();
-        if (isPlaying && Math.random() > 0.95) {
-          ctx.fillStyle = `rgba(${r},${g},${b},${Math.random() * alpha})`;
-          ctx.fillRect(0, Math.random() * canvas.height, canvas.width, Math.random() * 5);
-        }
-        if (lightingMode === 'glow') {
-          for (let i = 0; i < 3; i++) {
-            ctx.fillStyle = `rgba(${r},${g},${b},${Math.random() * 0.3})`;
-            ctx.beginPath();
-            ctx.arc(cx + (Math.random() - 0.5) * canvas.width, cy + (Math.random() - 0.5) * canvas.height, Math.random() * 3 + 1, 0, Math.PI * 2);
-            ctx.fill();
-          }
-        }
-      }
-      rafId = requestAnimationFrame(animate);
-    };
-    animate();
-
-    return () => { cancelAnimationFrame(rafId); window.removeEventListener('resize', resize); };
-  }, [isPlaying, lightingMode, movie.genre]);
-
-  // Web Audio Context Synthesizer
-  useEffect(() => {
-    if (!showCinemaSound || !isPlaying) return;
-    const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-    const freqs = {
-      'Sci-Fi': [65.41, 87.31], 'Thriller': [48.99, 65.41], 'Action': [82.41, 110.0],
-      'Animation': [110.0, 146.83], 'Drama': [55.0, 73.42], 'Horror': [41.2, 55.0]
-    };
-    const [f1, f2] = freqs[movie.genre] || [60, 80];
-    const osc1 = audioCtx.createOscillator();
-    const osc2 = audioCtx.createOscillator();
-    const filter = audioCtx.createBiquadFilter();
-    const masterGain = audioCtx.createGain();
-    filter.type = 'lowpass';
-    filter.frequency.value = 450;
-    osc1.frequency.value = f1; osc1.type = 'sine';
-    osc2.frequency.value = f2; osc2.type = 'sine';
-    masterGain.gain.value = (volume / 100) * (isMuted ? 0 : 0.15);
-    osc1.connect(filter); osc2.connect(filter);
-    filter.connect(masterGain);
-    masterGain.connect(audioCtx.destination);
-    osc1.start(); osc2.start();
-    gainsRef.current = [masterGain];
-    return () => {
-      try { osc1.stop(); osc2.stop(); } catch { /* ignore cleanup errors */ }
-      audioCtx.close();
-    };
-  }, [showCinemaSound, isPlaying, movie.genre, isMuted, volume]);
-
-  useEffect(() => {
-    const gain = gainsRef.current[0];
-    if (gain) gain.gain.value = (volume / 100) * (isMuted ? 0 : 0.15);
-  }, [volume, isMuted]);
-
-  const handleProgressUpdate = (newProgress) => {
-    const clamped = Math.max(0, Math.min(100, newProgress));
-    setProgress(clamped);
-    onProgressUpdate(movie.id, clamped, 'watching');
   };
 
   const handleClose = () => {
-    const gain = gainsRef.current[0];
-    if (gain) gain.gain.value = 0;
-    onProgressUpdate(movie.id, progress, progress >= 100 ? 'watched' : 'watching');
+    if (onProgressUpdate && movie?.id) {
+      onProgressUpdate(movie.id, 100, 'watched');
+    }
     onClose();
   };
 
-  if (showCompletion) {
-    return (
-      <div className="fixed inset-0 bg-black/95 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-        <div className="text-center max-w-md">
-          <h2 className="text-2xl font-serif font-light italic text-white mb-4">Congratulations, Cinephile!</h2>
-          <p className="text-white/60 text-sm mb-8">
-            You've completed watching <span className="font-bold text-white">"{movie.title}"</span>
-          </p>
-          <div className="p-4 bg-white/5 border border-white/10 mb-8 text-left">
-            <p className="text-[9px] uppercase tracking-[0.2em] text-white/40 font-mono mb-3">Achievement Unlocked</p>
-            <p className="text-white text-xs">+150 XP earned</p>
-            <p className="text-white/60 text-xs mt-1">Your level progress updated</p>
-          </div>
-
-          {streamingLinks.length > 0 && (
-            <div className="mb-8 text-left">
-              <p className="text-[9px] uppercase tracking-[0.2em] text-white/40 font-mono mb-3">Watch the Full Film On</p>
-              <div className="flex flex-wrap gap-2">
-                {streamingLinks.map((s, i) => (
-                  <a key={i} href={s.link} target="_blank" rel="noopener noreferrer"
-                    className="px-3 py-1.5 bg-white/10 border border-white/20 text-xs text-white hover:bg-white/20 transition-colors capitalize">
-                    {s.service} {s.type === 'subscription' ? '' : `(${s.type})`}
-                  </a>
-                ))}
-              </div>
-            </div>
-          )}
-          <div className="flex gap-3">
-            <button
-              onClick={() => { setProgress(0); setShowCompletion(false); }}
-              className="flex-1 py-3 px-4 bg-white/10 border border-white/20 text-xs font-bold uppercase tracking-wider text-white hover:bg-white/20 transition-colors cursor-pointer"
-            >
-              Watch Again
-            </button>
-            <button
-              onClick={handleClose}
-              className="flex-1 py-3 px-4 bg-white text-black text-xs font-bold uppercase tracking-wider hover:bg-neutral-200 transition-colors cursor-pointer"
-            >
-              Return to Library
-            </button>
-          </div>
-        </div>
-      </div>
-    );
-  }
+  const currentStreamUrl = typeof selectedServer?.getUrl === 'function'
+    ? (isAnime ? selectedServer.getUrl(cleanTmdbId, activeEpisode) : selectedServer.getUrl(cleanTmdbId))
+    : '';
 
   return (
-    <div className="fixed inset-0 bg-black z-50 flex flex-col items-center justify-center overflow-hidden">
-      <canvas ref={canvasRef} className="absolute inset-0 w-full h-full" />
-
-      <div className="relative z-10 w-full h-full flex flex-col justify-between p-4 md:p-8">
-        
-        {/* Top bar details */}
-        <div className="flex items-center justify-between">
+    <div
+      ref={playerContainerRef}
+      className="fixed inset-0 bg-bg-deepest z-50 flex flex-col justify-between overflow-hidden text-white animate-fade-in"
+    >
+      {/* Top Header Bar */}
+      <div className="relative z-20 flex items-center justify-between px-6 py-4 border-b border-white/[0.08] glass-header">
+        <div className="flex items-center gap-4">
+          {movie?.posterUrl && (
+            <img src={movie.posterUrl} alt="" className="w-9 h-12 rounded-xl object-cover border border-white/10 shadow-md hidden sm:block" />
+          )}
           <div>
-            <h2 className="text-xl md:text-3xl font-serif font-light italic text-white">{movie.title}</h2>
-            <p className="text-xs md:text-sm text-white/60 mt-2">{movie.year} • {movie.genre} • {movie.duration || '2h 15m'}</p>
-          </div>
-          <div className="flex items-center gap-2">
-            {streamingLinks.length > 0 && (
-              <button
-                onClick={() => setShowWhereToWatch(w => !w)}
-                className={`flex items-center gap-1.5 px-3 py-2 text-xs font-mono uppercase tracking-wider border transition-colors cursor-pointer ${
-                  showWhereToWatch ? 'bg-white/20 border-white/40 text-white' : 'border-white/20 text-white/60 hover:text-white'
-                }`}
-              >
-                <Tv2 className="w-3.5 h-3.5" /> Where to Watch
-              </button>
-            )}
-            <button onClick={handleClose} className="p-3 rounded-full bg-black/40 hover:bg-black/60 text-white transition-colors cursor-pointer">
-              <X className="w-6 h-6" />
-            </button>
+            <div className="flex items-center gap-2">
+              <h2 className="text-base md:text-lg font-display font-bold text-white tracking-tight">{movie?.title || 'Loading Media...'}</h2>
+              {movie?.rating && (
+                <span className="rating-badge font-mono text-[10px]">
+                  <Star className="w-3 h-3 fill-accent-gold text-accent-gold" />
+                  {movie.rating}
+                </span>
+              )}
+            </div>
+            <div className="text-xs text-white/40 mt-0.5 flex flex-wrap items-center gap-2 font-mono">
+              <span>{movie?.year || '2026'}</span>
+              <span>•</span>
+              <span className="text-emerald-400 flex items-center gap-1 font-bold text-[10px]">
+                <ShieldCheck className="w-3.5 h-3.5" /> Secure Stream
+              </span>
+              {isAnime && (
+                <>
+                  <span>•</span>
+                  <span className="text-primary-light font-bold">Episode {activeEpisode} of {totalEpisodes}</span>
+                </>
+              )}
+            </div>
           </div>
         </div>
 
-        {/* Where to Watch Dropdown Container */}
-        {showWhereToWatch && streamingLinks.length > 0 && (
-          <div className="absolute top-20 right-4 md:right-8 z-20 bg-black/80 border border-white/20 backdrop-blur-sm p-4 min-w-[220px]">
-            <p className="text-[9px] uppercase tracking-[0.2em] text-white/40 font-mono mb-3">Stream This Film On</p>
-            <div className="flex flex-col gap-2">
-              {streamingLinks.map((s, i) => (
-                <a key={i} href={s.link} target="_blank" rel="noopener noreferrer"
-                  className="flex items-center justify-between px-3 py-2 bg-white/10 hover:bg-white/20 transition-colors text-xs text-white capitalize">
-                  <span>{s.service}</span>
-                  <span className="text-white/40 text-[10px]">{s.type === 'subscription' ? 'Included' : s.type}</span>
-                </a>
-              ))}
+        <div className="flex items-center gap-3">
+          {isAnime && (
+            <div className="hidden md:flex items-center gap-1 glass-card rounded-xl p-1 border border-white/10">
+              <button
+                onClick={() => setIsDub(false)}
+                className={`px-3 py-1 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-all cursor-pointer ${!isDub ? 'gradient-accent text-white shadow-md' : 'text-white/40 hover:text-white'}`}
+              >
+                SUB
+              </button>
+              <button
+                onClick={() => setIsDub(true)}
+                className={`px-3 py-1 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-all cursor-pointer ${isDub ? 'gradient-accent text-white shadow-md' : 'text-white/40 hover:text-white'}`}
+              >
+                DUB
+              </button>
             </div>
+          )}
+
+          <div className="hidden md:flex items-center gap-2 glass-card rounded-xl px-3.5 py-1.5 border border-white/10">
+            <Sparkles className="w-3.5 h-3.5 text-accent-gold" />
+            <select
+              value={selectedServer?.id || ''}
+              onChange={(e) => {
+                const s = activeServers.find((srv) => srv.id === e.target.value);
+                if (s) handleServerChange(s);
+              }}
+              className="bg-transparent text-xs text-white font-bold outline-none cursor-pointer"
+            >
+              {activeServers.map((srv) => (
+                <option key={srv.id} value={srv.id} className="bg-bg-deepest text-black">
+                  {srv.name}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <button onClick={() => setIsLoading(true)} className="p-2.5 hover:bg-white/10 rounded-xl transition-colors cursor-pointer glass-card">
+            <RefreshCw className={`w-4 h-4 text-white/70 ${isLoading ? 'animate-spin text-primary-light' : ''}`} />
+          </button>
+          <button onClick={toggleFullscreen} className="p-2.5 hover:bg-white/10 rounded-xl transition-colors hidden sm:block cursor-pointer glass-card">
+            <Maximize2 className="w-4 h-4 text-white/70" />
+          </button>
+          <button onClick={handleClose} className="p-2.5 hover:bg-white/20 rounded-xl transition-colors gradient-accent text-white shadow-lg cursor-pointer">
+            <X className="w-4 h-4 text-white" />
+          </button>
+        </div>
+      </div>
+
+      {/* Main Player Display Frame */}
+      <div className="flex-1 w-full bg-black relative flex items-center justify-center">
+        {isLoading && (
+          <div className="absolute inset-0 flex flex-col items-center justify-center bg-bg-deepest/90 z-10 gap-3 backdrop-blur-md">
+            <div className="w-10 h-10 border-3 border-primary-light border-t-transparent rounded-full animate-spin"></div>
+            <p className="text-xs text-white/50 font-mono">Connecting to stream server via {selectedServer?.name || 'Primary Server'}...</p>
           </div>
         )}
 
-        {/* Redirect Interactive Display Panel */}
-        <div className="w-full max-w-xl mx-auto border border-white/10 bg-zinc-900/80 p-8 rounded-xl shadow-2xl backdrop-blur text-center space-y-6">
-          <div className="w-16 h-16 bg-white/5 border border-white/10 text-white rounded-full flex items-center justify-center mx-auto animate-pulse">
-            <ExternalLink className="w-6 h-6" />
+        {currentStreamUrl ? (
+          <iframe
+            key={currentStreamUrl}
+            src={currentStreamUrl}
+            className="w-full h-full border-0"
+            allowFullScreen
+            allow="autoplay; encrypted-media; picture-in-picture; clipboard-write"
+            onLoad={() => setIsLoading(false)}
+          />
+        ) : (
+          <div className="flex flex-col items-center gap-2">
+            <AlertTriangle className="w-8 h-8 text-red-400 animate-pulse" />
+            <p className="text-sm font-semibold text-white/80 font-mono">Stream Source Execution Failed</p>
           </div>
-          
-          <div className="space-y-2">
-            <h3 className="text-lg font-medium text-white">Opening External Media Player</h3>
-            <p className="text-xs text-white/50 max-w-sm mx-auto">
-              We've triggered the video player link in a separate window to prevent internal iframe embedding restrictions.
-            </p>
-          </div>
-
-          <div className="pt-2">
-            <a 
-              href={targetRedirectUrl} 
-              target="_blank" 
-              rel="noopener noreferrer" 
-              className="inline-flex items-center gap-2 px-6 py-3 bg-white hover:bg-neutral-200 text-black text-xs font-bold uppercase tracking-wider transition-all rounded shadow-lg"
-            >
-              Click Here to Resume Playback
-            </a>
-          </div>
-        </div>
-
-        {/* Timeline Control Trackers */}
-        <div className="space-y-4">
-          <div className="space-y-2">
-            <input
-              type="range" min="0" max="100" value={progress}
-              onChange={(e) => handleProgressUpdate(parseFloat(e.target.value))}
-              className="w-full h-1 bg-white/20 cursor-pointer appearance-none rounded-full [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-3 [&::-webkit-slider-thumb]:h-3 [&::-webkit-slider-thumb]:bg-white [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:cursor-pointer"
-            />
-            <div className="flex justify-between text-xs text-white/60">
-              <span>{Math.floor(progress)}%</span>
-              <span>100%</span>
-            </div>
-          </div>
-
-          <div className="flex items-center justify-center gap-4 bg-black/40 p-4 rounded-lg backdrop-blur-sm">
-            <button onClick={() => handleProgressUpdate(Math.max(0, progress - 10))} className="p-2 hover:bg-white/20 rounded-full transition-colors cursor-pointer text-white">
-              <SkipBack className="w-5 h-5" />
-            </button>
-            <button onClick={() => setIsPlaying(!isPlaying)} className="p-3 bg-white text-black hover:bg-neutral-200 transition-colors cursor-pointer rounded-full">
-              {isPlaying ? <Pause className="w-6 h-6 fill-current" /> : <Play className="w-6 h-6 fill-current" />}
-            </button>
-            <button onClick={() => handleProgressUpdate(Math.min(100, progress + 10))} className="p-2 hover:bg-white/20 rounded-full transition-colors cursor-pointer text-white">
-              <SkipForward className="w-5 h-5" />
-            </button>
-
-            <div className="flex-1" />
-
-            <select value={speed} onChange={(e) => setSpeed(e.target.value)}
-              className="bg-black/60 border border-white/20 text-xs px-2 py-1 text-white cursor-pointer hover:border-white/40 transition-colors outline-none rounded">
-              <option value="1x">1x</option>
-              <option value="2x">2x</option>
-              <option value="5x">5x</option>
-            </select>
-
-            <button onClick={() => setSubtitlesEnabled(!subtitlesEnabled)}
-              className={`p-2 rounded-full transition-colors cursor-pointer ${subtitlesEnabled ? 'bg-white/20 text-white' : 'text-white/40 hover:text-white'}`}>
-              <MessageSquare className="w-5 h-5" />
-            </button>
-
-            <div className="flex items-center gap-2">
-              <button onClick={() => setIsMuted(!isMuted)} className="p-2 hover:bg-white/20 rounded-full transition-colors cursor-pointer text-white">
-                {isMuted ? <VolumeX className="w-5 h-5" /> : <Volume2 className="w-5 h-5" />}
-              </button>
-              <input
-                type="range" min="0" max="100" value={isMuted ? 0 : volume}
-                onChange={(e) => { setVolume(parseInt(e.target.value)); setIsMuted(false); }}
-                className="w-20 h-1 bg-white/20 cursor-pointer appearance-none rounded-full [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-2.5 [&::-webkit-slider-thumb]:h-2.5 [&::-webkit-slider-thumb]:bg-white [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:cursor-pointer"
-              />
-            </div>
-
-            <select value={lightingMode} onChange={(e) => setLightingMode(e.target.value)}
-              className="bg-black/60 border border-white/20 text-xs px-2 py-1 text-white cursor-pointer hover:border-white/40 transition-colors outline-none rounded">
-              <option value="glow">Glow</option>
-              <option value="dimmed">Dimmed</option>
-              <option value="pitch-black">Pitch Black</option>
-            </select>
-
-            <button onClick={() => setShowCinemaSound(!showCinemaSound)}
-              className={`text-xs px-2.5 py-1.5 rounded border transition-colors cursor-pointer font-mono uppercase tracking-wider ${showCinemaSound ? 'bg-white/20 border-white/40 text-white' : 'border-white/20 text-white/40 hover:text-white'}`}>
-              Cinema Sound: {showCinemaSound ? 'ON' : 'OFF'}
-            </button>
-          </div>
-        </div>
-
+        )}
       </div>
+
+      {/* Dynamic Episode Picker Area */}
+      {isAnime && (
+        <div className="bg-bg-deepest border-t border-white/[0.08] px-6 py-3 relative z-20 flex items-center gap-3 overflow-x-auto">
+          <span className="text-xs font-bold text-white/40 uppercase font-mono tracking-wider shrink-0">Episodes:</span>
+          <div className="flex items-center gap-2">
+            {Array.from({ length: totalEpisodes }, (_, i) => i + 1).map((ep) => (
+              <button
+                key={ep}
+                onClick={() => {
+                  setActiveEpisode(ep);
+                  setIsLoading(true);
+                }}
+                className={`px-3.5 py-1.5 rounded-xl text-xs font-bold font-mono transition-all cursor-pointer ${
+                  activeEpisode === ep
+                    ? 'gradient-accent text-white shadow-lg scale-105'
+                    : 'glass-card text-white/60 hover:bg-white/10 hover:text-white'
+                }`}
+              >
+                Ep {ep}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
