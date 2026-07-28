@@ -85,7 +85,7 @@ export default function Sidebar({
 
           {/* Match Predictions section */}
           <div>
-            <div className="text-[9px] uppercase tracking-[0.35em] text-white/25 font-mono mb-3">Match Predictions</div>
+            <div className="text-[9px] uppercase tracking-[0.35em] text-white/25 font-mono mb-3">Soccer Predictions</div>
             <div className="flex flex-col space-y-1">
               {matchPages.map((item) => {
                 const Icon = item.icon;
