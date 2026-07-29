@@ -30,6 +30,7 @@ export const api = {
   auth: {
     register: (data) => request('/api/auth/register', { method: 'POST', body: JSON.stringify(data) }),
     login: (data) => request('/api/auth/login', { method: 'POST', body: JSON.stringify(data) }),
+    googleLogin: (data) => request('/api/auth/google', { method: 'POST', body: JSON.stringify(data) }),
   },
   fixtures: {
     list: () => request('/api/fixtures'),
@@ -50,3 +51,4 @@ export const api = {
     updateProfile: (data) => request('/api/users/profile', { method: 'PATCH', body: JSON.stringify(data) }),
   },
 };
+
