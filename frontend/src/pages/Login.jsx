@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useGame } from '../context/GameStateContext';
 import { api } from '../utils/backendApi';
+import { GoogleLogin } from '@react-oauth/google';
 
 export default function Login() {
   const [username, setUsername] = useState('');
@@ -36,6 +37,26 @@ export default function Login() {
     }
   };
 
+  const handleGoogleSuccess = async (credentialResponse) => {
+    try {
+      const data = await api.auth.googleLogin({ credential: credentialResponse.credential });
+      localStorage.setItem('token', data.token);
+      setUser({
+        isAuthenticated: true,
+        username: data.user.username,
+        role: data.user.role,
+        streak_count: data.user.prediction_streak,
+        current_level: data.user.current_level,
+        current_xp: data.user.total_xp,
+        xp_to_next_level: 100,
+        favorite_club: data.user.favorite_club,
+      });
+      navigate('/');
+    } catch (err) {
+      setError(err.message || 'Google sign in failed');
+    }
+  };
+
   return (
     <div className="max-w-md mx-auto mt-12 bg-surface-container border border-surface-container-high p-8 rounded-2xl shadow-card-glow">
       <div className="text-center mb-6">
@@ -58,12 +79,27 @@ export default function Login() {
           {loading ? 'Signing in...' : 'Sign In'}
         </button>
       </form>
+
+      <div className="flex items-center my-6">
+        <div className="flex-1 border-t border-surface-container-high"></div>
+        <span className="px-3 text-xs text-on-surface-variant uppercase font-bold tracking-widest">or</span>
+        <div className="flex-1 border-t border-surface-container-high"></div>
+      </div>
+
+      <div className="flex justify-center w-full">
+        <GoogleLogin
+          onSuccess={handleGoogleSuccess}
+          onError={() => console.error('Google Sign In Failed')}
+          text="signup_with"
+          theme="filled_black"
+          shape="pill"
+          width="100%"
+        />
+      </div>
+
       <p className="text-center text-xs text-on-surface-variant mt-6">
         New here? <Link to="/signup" className="text-warm-gold font-bold hover:underline">Create Account</Link>
       </p>
-    </div>
-  );
-}
     </div>
   );
 }
