@@ -1,11 +1,11 @@
 export default function Footer() {
   return (
-    <footer className="border-t border-white/10 bg-[#0A0A0A] py-6 px-4 md:px-10">
+    <footer className="border-t border-surface-container-high bg-[#0c0a09] py-6 px-4 md:px-10">
       <div className="max-w-[1440px] mx-auto flex flex-col md:flex-row items-center justify-between gap-4">
-        <div className="text-[10px] uppercase tracking-[0.3em] text-white/20 font-mono">
+        <div className="text-[10px] uppercase tracking-[0.3em] text-surface-container-high font-mono">
           PopcornClash Arena
         </div>
-        <div className="text-[10px] uppercase tracking-[0.3em] text-white/20 font-mono">
+        <div className="text-[10px] uppercase tracking-[0.3em] text-surface-container-high font-mono">
           EST. 2026
         </div>
       </div>
