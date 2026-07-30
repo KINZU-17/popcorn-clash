@@ -3,6 +3,10 @@ from app.database.connection import init_db, seed_database
 
 app = create_app()
 
+@app.route("/")
+def home():
+    return "Welcome to the Popcorn Clash API!"
+
 if __name__ == "__main__":
     init_db()
     seed_database()
