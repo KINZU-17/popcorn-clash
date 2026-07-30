@@ -1,3 +1,7 @@
+Single-database configuration for Flask.
+
+
+
 # Database Migrations
 
 This directory stores Flask-Migrate / Alembic migration scripts.
