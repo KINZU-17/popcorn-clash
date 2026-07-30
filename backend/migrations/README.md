@@ -1,0 +1,31 @@
+# Database Migrations
+
+This directory stores Flask-Migrate / Alembic migration scripts.
+
+## Setup
+
+Initialize the migration environment:
+
+```bash
+cd /path/to/popcornclash/backend
+export FLASK_APP=run.py
+flask db init
+```
+
+## Usage
+
+```bash
+# Generate a new migration after model/schema changes
+flask db migrate -m "description"
+
+# Apply migrations to the database
+flask db upgrade
+
+# Downgrade if needed
+flask db downgrade
+```
+
+## Current Schema
+
+Migrations track changes to the SQLAlchemy model definitions.
+The base schema is defined in `app/database/schema.sql` and `app/database/seed.sql`.
