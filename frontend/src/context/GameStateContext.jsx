@@ -1,7 +1,8 @@
 /* eslint-disable react-refresh/only-export-components */
 import { createContext, useContext, useState, useEffect } from 'react';
+import { api } from '../utils/backendApi';
 
-const GameStateContext = createContext(undefined);
+const GameStateContext = createContext();
 
 const defaultUser = {
   isAuthenticated: false,
@@ -19,8 +20,7 @@ export const GameStateProvider = ({ children }) => {
     try {
       const saved = localStorage.getItem('popcornclash_user');
       return saved ? JSON.parse(saved) : defaultUser;
-    } catch (error) {
-      console.error("Failed to parse user state from localStorage:", error);
+    } catch {
       return defaultUser;
     }
   });
@@ -29,22 +29,22 @@ export const GameStateProvider = ({ children }) => {
     localStorage.setItem('popcornclash_user', JSON.stringify(user));
   }, [user]);
 
+  const loginWithGoogle = async (credential) => {
+    const data = await api.auth.google(credential);
+    return data;
+  };
+
   const logout = () => {
-    localStorage.removeItem('popcornclash_user'); // Fast, synchronous removal
+    localStorage.removeItem('token');
+    localStorage.removeItem('popcornclash_user');
     setUser(defaultUser);
   };
 
   return (
-    <GameStateContext.Provider value={{ user, setUser, logout }}>
+    <GameStateContext.Provider value={{ user, setUser, loginWithGoogle, logout }}>
       {children}
     </GameStateContext.Provider>
   );
 };
 
-export const useGame = () => {
-  const context = useContext(GameStateContext);
-  if (!context) {
-    throw new Error('useGame must be used within a GameStateProvider');
-  }
-  return context;
-};
+export const useGame = () => useContext(GameStateContext);
