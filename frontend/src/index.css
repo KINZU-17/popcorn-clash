@@ -1,36 +1,39 @@
-@import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,300;1,400;1,600&family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap');
 @import "tailwindcss";
 
 @theme {
-  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
-  --font-serif: "Cormorant Garamond", Georgia, serif;
-  --font-display: "Cormorant Garamond", Georgia, serif;
+  --font-sans: "Plus Jakarta Sans", ui-sans-serif, system-ui, sans-serif;
+  --font-serif: "Plus Jakarta Sans", Georgia, serif;
+  --font-display: "Plus Jakarta Sans", Georgia, serif;
   --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
 
-  --color-surface-container-lowest: #050505;
-  --color-surface-container-low: #0f0f0f;
-  --color-surface-container: #141414;
-  --color-surface-container-high: #1a1a1a;
-  --color-surface-container-highest: #222222;
-  --color-on-surface: #f5f5f5;
-  --color-on-surface-variant: rgba(245, 245, 245, 0.5);
-  --color-primary: #ffffff;
-  --color-primary-container: #e6e6e6;
-  --color-on-primary-container: #0a0a0a;
-  --color-secondary: #a3a3a3;
-  --color-secondary-container: #262626;
-  --color-tertiary: #d4d4d4;
-  --color-tertiary-container: #171717;
-  --color-background: #0a0a0a;
-  --color-surface-glass: rgba(255, 255, 255, 0.02);
+  --color-surface-container-lowest: #0c0a09;
+  --color-surface-container-low: #1c1917;
+  --color-surface-container: #292524;
+  --color-surface-container-high: #44403c;
+  --color-surface-container-highest: #57534e;
+  --color-on-surface: #fafaf9;
+  --color-on-surface-variant: rgba(250, 250, 249, 0.7);
+  --color-primary: #f5f5f4;
+  --color-primary-container: #e7e5e4;
+  --color-on-primary-container: #1c1917;
+  --color-secondary: #d6d3d1;
+  --color-secondary-container: #292524;
+  --color-tertiary: #e7e5e4;
+  --color-tertiary-container: #1c1917;
+  --color-background: #0c0a09;
+  --color-surface-glass: rgba(28, 25, 23, 0.4);
+  --color-warm-gold: #d97706;
+  --color-warm-gold-light: #fbbf24;
+  --color-warm-glow: rgba(217, 119, 6, 0.15);
 }
 
 @layer utilities {
   .glass-panel {
-    background: rgba(255, 255, 255, 0.02);
+    background: rgba(28, 25, 23, 0.4);
     backdrop-filter: blur(24px);
     -webkit-backdrop-filter: blur(24px);
-    border: 1px solid rgba(255, 255, 255, 0.07);
+    border: 1px solid rgba(68, 64, 60, 0.5);
   }
   
   .movie-card-glow {
@@ -38,12 +41,12 @@
   }
   
   .movie-card-glow:hover {
-    box-shadow: 0 10px 40px -15px rgba(255, 255, 255, 0.15);
-    border-color: rgba(255, 255, 255, 0.25);
+    box-shadow: 0 10px 40px -15px rgba(217, 119, 6, 0.2);
+    border-color: rgba(217, 119, 6, 0.3);
   }
 
   .artistic-border {
-    border: 1px solid rgba(255, 255, 255, 0.08);
+    border: 1px solid rgba(68, 64, 60, 0.6);
   }
 
   .editorial-track {
@@ -57,30 +60,29 @@
     height: 4px;
   }
   ::-webkit-scrollbar-track {
-    background: #0a0a0a;
+    background: #0c0a09;
   }
   ::-webkit-scrollbar-thumb {
-    background: #262626;
+    background: #44403c;
     border-radius: 4px;
   }
   ::-webkit-scrollbar-thumb:hover {
-    background: #404040;
+    background: #57534e;
   }
 }
 
+@utility bg-pitch-dark { background-color: var(--color-surface-container-lowest); }
+@utility bg-pitch-over { background-color: var(--color-surface-container-low); }
+@utility bg-pitch-card { background-color: var(--color-surface-container); }
+@utility text-popcorn-gold { color: var(--color-warm-gold); }
+@utility text-clash-cyan { color: var(--color-warm-gold-light); }
+@utility text-clash-red { color: #f87171; }
+@utility shadow-neon-glow { box-shadow: 0 0 25px var(--color-warm-glow), 0 0 50px rgba(217, 119, 6, 0.1); }
+@utility shadow-card-glow { box-shadow: 0 4px 24px rgba(0, 0, 0, 0.4); }
+
 body {
-  background-color: #0a0a0a;
-  color: #f5f5f5;
+  background-color: #0c0a09;
+  color: #fafaf9;
   font-family: var(--font-sans);
   overflow-x: hidden;
-}
-@keyframes slideBackground {
-  0% { transform: translateX(0); }
-  100% { transform: translateX(-50%); }
-}
-
-.animate-movie-slide {
-  display: flex;
-  width: 200%; /* Spans double the container width to seamlessly repeat */
-  animation: slideBackground 40s linear infinite;
 }
