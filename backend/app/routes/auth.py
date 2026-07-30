@@ -92,7 +92,9 @@ class RegisterResource(Resource):
 
         errors = user_schema.validate(args)
         if errors:
-            return {"errors": errors}, 400
+            err_msg = "; ".join(f"{k}: {', '.join(v)}" for k, v in errors.items())
+            return {"error": err_msg}, 400
+
 
         if get_user_by_email(args["email"]):
             return {"error": "Email already registered"}, 409

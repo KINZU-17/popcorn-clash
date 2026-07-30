@@ -5,7 +5,6 @@ name = "pypi"
 
 [packages]
 requests = "*"
-PyJWT = "*"
 flask = "*"
 flask-sqlalchemy = "*"
 python-dotenv = "*"
@@ -17,8 +16,9 @@ flask-cors = "*"
 psycopg2-binary = "*"
 gunicorn = "*"
 flask-migrate = "*"
+pyjwt = "*"
 
 [dev-packages]
 
 [requires]
-python_version = "3.14"
+python_version = "3.13"

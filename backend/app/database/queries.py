@@ -220,3 +220,46 @@ def update_review(review_id: int, **kwargs) -> None:
 def delete_review(review_id: int) -> None:
     with get_cursor() as cur:
         cur.execute("DELETE FROM reviews WHERE id = ?", (review_id,))
+
+
+def delete_movie(movie_id: int) -> None:
+    with get_cursor() as cur:
+        cur.execute("DELETE FROM user_movie_statuses WHERE movie_id = ?", (movie_id,))
+        cur.execute("DELETE FROM movies WHERE id = ?", (movie_id,))
+
+
+def get_user_movie_statuses(user_id: int) -> dict:
+    with get_cursor() as cur:
+        cur.execute("SELECT movie_id, status, is_favorite FROM user_movie_statuses WHERE user_id = ?", (user_id,))
+        rows = cur.fetchall()
+        return {
+            row["movie_id"]: {
+                "status": row["status"],
+                "is_favorite": bool(row["is_favorite"])
+            } for row in rows
+        }
+
+
+def update_user_movie_status(user_id: int, movie_id: int, status: str = None, is_favorite: bool = None) -> None:
+    with get_cursor() as cur:
+        # Check if already exists
+        cur.execute("SELECT status, is_favorite FROM user_movie_statuses WHERE user_id = ? AND movie_id = ?", (user_id, movie_id))
+        row = cur.fetchone()
+        
+        if row:
+            # Update existing
+            new_status = status if status is not None else row["status"]
+            new_fav = int(is_favorite) if is_favorite is not None else row["is_favorite"]
+            cur.execute(
+                "UPDATE user_movie_statuses SET status = ?, is_favorite = ? WHERE user_id = ? AND movie_id = ?",
+                (new_status, new_fav, user_id, movie_id)
+            )
+        else:
+            # Insert new
+            new_status = status if status is not None else 'watchlist'
+            new_fav = int(is_favorite) if is_favorite is not None else 0
+            cur.execute(
+                "INSERT INTO user_movie_statuses (user_id, movie_id, status, is_favorite) VALUES (?, ?, ?, ?)",
+                (user_id, movie_id, new_status, new_fav)
+            )
+

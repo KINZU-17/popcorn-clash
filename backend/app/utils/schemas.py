@@ -16,6 +16,8 @@ class UserSchema(Schema):
     username = fields.Str(required=True, validate=validate.Length(min=1, max=120))
     email = fields.Email(required=True)
     password = fields.Str(required=True, validate=validate.Length(min=6))
+    favorite_club = fields.Str(allow_none=True)
+
 
 
 class ProfileUpdateSchema(Schema):
@@ -46,7 +48,14 @@ class TeamSchema(Schema):
 
 
 class FixtureSchema(Schema):
+    id = fields.Int(allow_none=True)
     team_home_id = fields.Int(required=True)
     team_away_id = fields.Int(required=True)
     match_date = fields.Str(required=True)
     status = fields.Str(allow_none=True)
+    home_name = fields.Str(allow_none=True)
+    home_code = fields.Str(allow_none=True)
+    home_league = fields.Str(allow_none=True)
+    away_name = fields.Str(allow_none=True)
+    away_code = fields.Str(allow_none=True)
+    away_league = fields.Str(allow_none=True)

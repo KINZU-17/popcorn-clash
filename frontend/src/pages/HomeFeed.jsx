@@ -30,12 +30,15 @@ export default function HomeFeed({ searchQuery = '', onMatchClick }) {
   }, []);
 
   const filteredFixtures = fixtures.filter((fixture) => {
+    const homeName = fixture.homeTeam?.name || '';
+    const awayName = fixture.awayTeam?.name || '';
     const matchesSearch =
-      fixture.homeTeam.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      fixture.awayTeam.name.toLowerCase().includes(searchQuery.toLowerCase());
+      homeName.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      awayName.toLowerCase().includes(searchQuery.toLowerCase());
     if (selectedTab === 'ALL') return matchesSearch;
     return matchesSearch && fixture.status === selectedTab;
   });
+
 
   return (
     <div className="space-y-6">

@@ -1,7 +1,9 @@
 from flask import Blueprint, request
 from flask_restful import Resource, Api
-from app.database.queries import get_all_movies, get_movie_by_id, create_movie
+from app.database.queries import get_all_movies, get_movie_by_id, create_movie, delete_movie, get_user_movie_statuses, update_user_movie_status
 from app.utils.schemas import MovieSchema
+from app.utils.auth import login_required
+
 
 movies_bp = Blueprint("movies", __name__, url_prefix="/api/movies")
 movies_api = Api(movies_bp)
@@ -51,6 +53,33 @@ class MovieResource(Resource):
             return {"error": "Movie not found"}, 404
         return {"movie": movie_schema.dump(movie)}
 
+    @login_required
+    def delete(self, movie_id):
+        movie = get_movie_by_id(movie_id)
+        if not movie:
+            return {"error": "Movie not found"}, 404
+        delete_movie(movie_id)
+        return {"deleted": True}
+
+
+class MovieStatusListResource(Resource):
+    @login_required
+    def get(self):
+        statuses = get_user_movie_statuses(request.user_id)
+        return {"status": statuses}
+
+
+class MovieStatusResource(Resource):
+    @login_required
+    def patch(self, movie_id):
+        data = request.get_json(silent=True) or {}
+        status = data.get("status")
+        is_favorite = data.get("isFavorite") # Frontend sends isFavorite
+        update_user_movie_status(request.user_id, movie_id, status=status, is_favorite=is_favorite)
+        return {"status": "updated"}, 200
+
 
 movies_api.add_resource(MovieListResource, "")
 movies_api.add_resource(MovieResource, "/<int:movie_id>")
+movies_api.add_resource(MovieStatusListResource, "/status")
+movies_api.add_resource(MovieStatusResource, "/<int:movie_id>/status")
