@@ -1,0 +1,16 @@
+__pycache__/
+*.pyc
+*.pyo
+*.db
+*.dbml
+*.mssql.sql
+*.cpython-*
+node_modules/
+dist/
+.env
+!.env.example
+.vscode/
+.idea/
+.DS_Store
+*.log
+kilo.json
