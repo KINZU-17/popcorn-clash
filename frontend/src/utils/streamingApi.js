@@ -2,12 +2,12 @@ const TMDB_KEY = import.meta.env.VITE_TMDB_API_KEY;
 const STREAMING_KEY = import.meta.env.VITE_STREAMING_API_KEY;
 const STREAMING_HOST = import.meta.env.VITE_STREAMING_API_HOST;
 const FOOTBALL_KEY = import.meta.env.VITE_FOOTBALL_API_KEY;
+const API_BASE = import.meta.env.VITE_BACKEND_URL || 'http://localhost:5555';
 
 const TMDB_BASE = 'https://api.themoviedb.org/3';
 const TMDB_IMG = 'https://image.tmdb.org/t/p/w500';
 const FOOTBALL_BASE = 'https://api.football-data.org/v4';
 
-// Empty fallback when API unavailable
 const EMPTY_MOVIES = [];
 
 // Map TMDb genre IDs to readable names
@@ -33,50 +33,93 @@ function normalizeTmdbMovie(m) {
   };
 }
 
-// Fetch trending or search movies from TMDb
+export function normalizeBackendMovie(m) {
+  return {
+    id: `movie-${m.id}`,
+    tmdbId: m.tmdb_id,
+    title: m.title,
+    overview: m.overview || 'No overview available.',
+    posterUrl: m.poster_url || null,
+    genre: m.genre || 'Drama',
+    year: m.year || null,
+    rating: m.rating ? parseFloat(Number(m.rating).toFixed(1)) : null,
+    duration: m.duration || null,
+    // UI-only fields the backend doesn't persist; defaulted for the library views
+    status: 'watchlist',
+    isFavorite: false,
+  };
+}
+
+// Fetch trending or search movies from TMDb or backend fallback
 export async function fetchMovies({ query = '', genre = '', page = 1 } = {}) {
-  if (!TMDB_KEY || TMDB_KEY === 'your_tmdb_api_key_here') return EMPTY_MOVIES;
+  if (TMDB_KEY && TMDB_KEY !== 'your_tmdb_api_key_here') {
+    try {
+      let url;
+      if (query.trim()) {
+        url = `${TMDB_BASE}/search/movie?api_key=${TMDB_KEY}&query=${encodeURIComponent(query)}&page=${page}&language=en-US`;
+      } else {
+        url = `${TMDB_BASE}/movie/popular?api_key=${TMDB_KEY}&page=${page}&language=en-US`;
+      }
+
+      const res = await fetch(url);
+      if (!res.ok) throw new Error(`TMDb error ${res.status}`);
+      const data = await res.json();
+      let movies = (data.results || []).map(normalizeTmdbMovie);
+
+      if (genre && genre !== 'All Genres') {
+        movies = movies.filter(m => m.genre === genre);
+      }
+
+      return movies.slice(0, 18);
+    } catch (err) {
+      console.error('TMDb fetch error:', err);
+    }
+  }
 
   try {
-    let url;
-    if (query.trim()) {
-      url = `${TMDB_BASE}/search/movie?api_key=${TMDB_KEY}&query=${encodeURIComponent(query)}&page=${page}&language=en-US`;
-    } else {
-      url = `${TMDB_BASE}/movie/popular?api_key=${TMDB_KEY}&page=${page}&language=en-US`;
-    }
+    const url = new URL(`${API_BASE}/api/movies`);
+    if (query.trim()) url.searchParams.set('q', query.trim());
+    if (genre && genre !== 'All Genres') url.searchParams.set('genre', genre);
+    url.searchParams.set('limit', '18');
 
-    const res = await fetch(url);
-    if (!res.ok) throw new Error(`TMDb error ${res.status}`);
+    const res = await fetch(url.toString());
+    if (!res.ok) throw new Error(`Backend movies error ${res.status}`);
     const data = await res.json();
-    let movies = (data.results || []).map(normalizeTmdbMovie);
-
-    // Client-side genre filter (TMDb search doesn't support genre filter directly)
-    if (genre && genre !== 'All Genres') {
-      movies = movies.filter(m => m.genre === genre);
-    }
-
-    return movies.slice(0, 18);
+    return (data.movies || []).map(normalizeBackendMovie);
   } catch (err) {
-    console.error('TMDb fetch error:', err);
+    console.error('Backend movies fetch error:', err);
     return EMPTY_MOVIES;
   }
 }
 
-// Fetch movies by genre using TMDb discover endpoint
+// Fetch movies by genre using TMDb discover endpoint or backend fallback
 export async function fetchMoviesByGenre(genreName) {
-  if (!TMDB_KEY || TMDB_KEY === 'your_tmdb_api_key_here') return EMPTY_MOVIES;
-
-  const genreId = Object.entries(GENRE_MAP).find(([, name]) => name === genreName)?.[0];
-  if (!genreId) return fetchMovies();
+  if (TMDB_KEY && TMDB_KEY !== 'your_tmdb_api_key_here') {
+    const genreId = Object.entries(GENRE_MAP).find(([, name]) => name === genreName)?.[0];
+    if (genreId) {
+      try {
+        const url = `${TMDB_BASE}/discover/movie?api_key=${TMDB_KEY}&with_genres=${genreId}&sort_by=popularity.desc&language=en-US`;
+        const res = await fetch(url);
+        if (!res.ok) throw new Error(`TMDb error ${res.status}`);
+        const data = await res.json();
+        return (data.results || []).map(normalizeTmdbMovie).slice(0, 18);
+      } catch (err) {
+        console.error('TMDb genre fetch error:', err);
+      }
+    }
+  }
 
   try {
-    const url = `${TMDB_BASE}/discover/movie?api_key=${TMDB_KEY}&with_genres=${genreId}&sort_by=popularity.desc&language=en-US`;
-    const res = await fetch(url);
-    if (!res.ok) throw new Error(`TMDb error ${res.status}`);
+    const url = new URL(`${API_BASE}/api/movies`);
+    if (genreName && genreName !== 'All Genres') url.searchParams.set('genre', genreName);
+    url.searchParams.set('limit', '18');
+
+    const res = await fetch(url.toString());
+    if (!res.ok) throw new Error(`Backend movies error ${res.status}`);
     const data = await res.json();
-    return (data.results || []).map(normalizeTmdbMovie).slice(0, 18);
+    return (data.movies || []).map(normalizeBackendMovie);
   } catch (err) {
-    console.error('TMDb genre fetch error:', err);
+    console.error('Backend genre fetch error:', err);
     return EMPTY_MOVIES;
   }
 }
