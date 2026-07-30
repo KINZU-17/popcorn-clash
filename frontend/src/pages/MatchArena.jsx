@@ -1,6 +1,5 @@
 import { useState, useEffect } from 'react';
-
-const API_BASE = import.meta.env.VITE_BACKEND_URL || '';
+import { api } from '../utils/backendApi';
 
 export default function MatchArena({ matchId }) {
   const [vote, setVote] = useState({ selection: null, ratio: 50 });
@@ -13,14 +12,18 @@ export default function MatchArena({ matchId }) {
     async function loadData() {
       if (!matchId) return;
       try {
-        if (API_BASE) {
-          const res = await fetch(`${API_BASE}/api/fixtures/${matchId}`);
-          if (res.ok) {
-            const matchData = await res.json();
-            setMatch(matchData);
-            if (matchData.globalVotes) setGlobalVotes(matchData.globalVotes);
-          }
-        }
+        const fixtureData = await api.fixtures.get(matchId);
+        setMatch(fixtureData.fixture);
+
+        const predictionsData = await api.predictions.listForFixture(matchId);
+        const predictions = predictionsData.predictions || [];
+        const votes = { home: 0, draw: 0, away: 0 };
+        predictions.forEach((p) => {
+          if (p.predicted_winner_id === fixtureData.fixture.team_home_id) votes.home += 1;
+          else if (p.predicted_winner_id === fixtureData.fixture.team_away_id) votes.away += 1;
+          else votes.draw += 1;
+        });
+        setGlobalVotes(votes);
       } catch (err) {
         console.error('Failed to load match data:', err);
       }
@@ -32,23 +35,18 @@ export default function MatchArena({ matchId }) {
     if (!vote.selection || submitted) return;
     setSubmitting(true);
     try {
-      if (API_BASE) {
-        const res = await fetch(`${API_BASE}/api/predictions`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${localStorage.getItem('token') || ''}`
-          },
-          body: JSON.stringify({
-            fixture_id: matchId,
-            prediction: vote.selection,
-            confidence: vote.ratio
-          })
-        });
-        if (res.ok) setSubmitted(true);
-      } else {
-        setSubmitted(true);
-      }
+      const predicted_winner_id = vote.selection === 'HOME'
+        ? match.team_home_id
+        : vote.selection === 'AWAY'
+          ? match.team_away_id
+          : null;
+
+      await api.predictions.create({
+        fixture_id: matchId,
+        predicted_winner_id,
+        confidence: vote.ratio,
+      });
+      setSubmitted(true);
     } catch (err) {
       console.error('Prediction error:', err);
     } finally {
@@ -56,7 +54,7 @@ export default function MatchArena({ matchId }) {
     }
   };
 
-  const matchTitle = match ? `${match.homeTeam?.name || 'Home'} vs ${match.awayTeam?.name || 'Away'}` : 'Select Match';
+  const matchTitle = match ? `${match.home_name || 'Home'} vs ${match.away_name || 'Away'}` : 'Select Match';
 
   const totalVotes = globalVotes.home + globalVotes.draw + globalVotes.away;
   const homePercent = totalVotes ? Math.round((globalVotes.home / totalVotes) * 100) : 0;
@@ -69,7 +67,7 @@ export default function MatchArena({ matchId }) {
         <section className="rounded-3xl border border-gray-800/80 bg-gradient-to-br from-pitch-over to-pitch-card p-6 shadow-card-glow">
           <div className="text-xs font-semibold uppercase tracking-[0.35em] text-popcorn-gold">Match Prediction</div>
           <h2 className="mt-2 text-3xl font-black text-white">{matchTitle}</h2>
-          <p className="mt-3 text-sm text-gray-400">Cast your prediction and track live results.</p>
+          <p className="mt-3 text-sm text-on-surface-variant">Cast your prediction and track live results.</p>
         </section>
 
         <section className="rounded-3xl border border-gray-800/80 bg-pitch-card p-6 shadow-card-glow">
@@ -80,7 +78,7 @@ export default function MatchArena({ matchId }) {
                 key={choice}
                 type="button"
                 onClick={() => setVote({ ...vote, selection: choice })}
-                className={`rounded-2xl border px-4 py-3 text-sm font-black uppercase tracking-[0.25em] transition-all ${vote.selection === choice ? 'border-transparent bg-popcorn-gold text-pitch-dark shadow-neon-glow' : 'border-gray-800 bg-pitch-over/70 text-gray-300 hover:border-gray-700'}`}
+                className={`rounded-2xl border px-4 py-3 text-sm font-black uppercase tracking-[0.25em] transition-all ${vote.selection === choice ? 'border-transparent bg-popcorn-gold text-pitch-dark shadow-neon-glow' : 'border-gray-800 bg-pitch-over/70 text-white hover:border-gray-700'}`}
               >
                 {choice}
               </button>
@@ -88,7 +86,7 @@ export default function MatchArena({ matchId }) {
           </div>
 
           <div className="mt-6 rounded-2xl border border-gray-800/80 bg-pitch-over/70 p-4">
-            <div className="flex items-center justify-between text-xs font-semibold uppercase tracking-[0.25em] text-gray-400">
+            <div className="flex items-center justify-between text-xs font-semibold uppercase tracking-[0.25em] text-on-surface-variant">
               <span>Confidence accuracy risk ratio</span>
               <span className="text-emerald-400">{vote.ratio}% weight</span>
             </div>
@@ -116,7 +114,7 @@ export default function MatchArena({ matchId }) {
       <div className="space-y-6">
         <section className="rounded-3xl border border-gray-800/80 bg-pitch-card p-6 shadow-card-glow">
           <div className="text-xs font-semibold uppercase tracking-[0.35em] text-clash-cyan">Community Predictions</div>
-          <p className="mt-2 text-sm text-gray-400">Live vote split across all predictors.</p>
+          <p className="mt-2 text-sm text-on-surface-variant">Live vote split across all predictors.</p>
 
           <div className="mt-4 space-y-3">
             <div>
@@ -149,18 +147,18 @@ export default function MatchArena({ matchId }) {
           </div>
 
           <div className="mt-4 rounded-2xl border border-gray-800/80 bg-pitch-over/70 p-3 text-center">
-            <div className="text-[10px] font-semibold uppercase tracking-[0.25em] text-gray-500">Total Predictions</div>
+            <div className="text-[10px] font-semibold uppercase tracking-[0.25em] text-on-surface-variant">Total Predictions</div>
             <div className="mt-1 text-2xl font-black text-white">{totalVotes.toLocaleString()}</div>
           </div>
         </section>
 
         <section className="rounded-3xl border border-gray-800/80 bg-pitch-card p-6 shadow-card-glow">
           <div className="text-xs font-semibold uppercase tracking-[0.35em] text-popcorn-gold">Match Chat</div>
-          <div className="mt-3 rounded-2xl border border-gray-800/80 bg-pitch-over/70 p-3 text-xs font-mono text-gray-400">ROOM: PC-2026-65X</div>
+          <div className="mt-3 rounded-2xl border border-gray-800/80 bg-pitch-over/70 p-3 text-xs font-mono text-on-surface-variant">ROOM: PC-2026-65X</div>
           <div className="mt-4 space-y-3">
-            <div className="rounded-2xl border border-gray-800/80 bg-pitch-over/70 p-3 text-sm text-gray-300">
+            <div className="rounded-2xl border border-gray-800/80 bg-pitch-over/70 p-3 text-sm text-white">
               <div className="font-semibold text-popcorn-gold">Tactician_Max</div>
-              <div className="mt-1 text-gray-400">Home team has a strong tactical advantage this fixture.</div>
+              <div className="mt-1 text-on-surface-variant">Home team has a strong tactical advantage this fixture.</div>
             </div>
             <div className="rounded-2xl border border-emerald-500/20 bg-emerald-500/10 p-3 text-sm text-emerald-300">
               PopcornJam sync is active — halftime watch party ready.
