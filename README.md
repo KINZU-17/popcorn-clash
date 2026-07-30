@@ -245,12 +245,23 @@ export FLASK_APP=run.py
 flask db init
 flask db migrate -m "initial"
 flask db upgrade
+```
 
 # Start development server
-python run.py
+```bash
+python3 run.py 
+```
+```bash
+flask run
+```
 
 # Or with Gunicorn (production)
-gunicorn -c gunicorn.conf.py wsgi:app
+```bash
+gunicorn -c gunicorn.conf.py wsgi:app 
+```
+or
+```bash
+gunicorn run:app
 ```
 
 ### Frontend
