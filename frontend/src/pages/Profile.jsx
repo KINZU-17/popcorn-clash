@@ -1,8 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useGame } from '../context/GameStateContext';
 import { api } from '../utils/backendApi';
 import {
-  UserCircleIcon,
   FireIcon,
   ClockIcon,
   FilmIcon,
@@ -45,6 +44,7 @@ const Profile = ({ movies = [], collections = [], history = [] }) => {
   const [editingReviewId, setEditingReviewId] = useState(null);
   const [editedReviewText, setEditedReviewText] = useState('');
   const [editedReviewRating, setEditedReviewRating] = useState(0);
+  const reviewIdCounter = useRef(0);
 
   useEffect(() => {
     const fetchReviews = async () => {
@@ -71,7 +71,7 @@ const Profile = ({ movies = [], collections = [], history = [] }) => {
     const movie = watchedMovies.find(m => m.title === newReview.movieTitle);
     const reviewData = { ...newReview, posterUrl: movie?.posterUrl };
 
-    const tempId = Date.now();
+    const tempId = `review-${++reviewIdCounter.current}`;
     setReviews([{ id: tempId, ...reviewData }, ...reviews]);
     setShowReviewForm(false);
     setNewReview({ movieTitle: '', rating: 0, text: '' });

@@ -52,8 +52,7 @@ export default function MoviePlayer({ movie, onClose, onProgressUpdate }) {
   const totalEpisodes = isAnime ? parseInt(movie?.episodes || 24, 10) : 1;
 
   useEffect(() => {
-    const servers = isAnime ? (isDub ? ANIME_SERVERS_DUB : ANIME_SERVERS_SUB) : MOVIE_SERVERS;
-    setSelectedServer(servers[0]);
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setIsLoading(true);
   }, [movie?.id, isDub, isAnime]);
 
@@ -87,6 +86,14 @@ export default function MoviePlayer({ movie, onClose, onProgressUpdate }) {
       ref={playerContainerRef}
       className="fixed inset-0 bg-bg-deepest z-50 flex flex-col justify-between overflow-hidden text-white animate-fade-in"
     >
+      {/* Netflix-style full-bleed backdrop: huge, closely cropped poster */}
+      {movie?.posterUrl && (
+        <img
+          src={movie.posterUrl}
+          alt={movie.title}
+          className="absolute inset-0 h-full w-full object-cover object-center opacity-25 blur-[3px] scale-125"
+        />
+      )}
       {/* Top Header Bar */}
       <div className="relative z-20 flex items-center justify-between px-6 py-4 border-b border-white/[0.08] glass-header">
         <div className="flex items-center gap-4">
@@ -97,7 +104,7 @@ export default function MoviePlayer({ movie, onClose, onProgressUpdate }) {
             <div className="flex items-center gap-2">
               <h2 className="text-base md:text-lg font-display font-bold text-white tracking-tight">{movie?.title || 'Loading Media...'}</h2>
               {movie?.rating && (
-                <span className="rating-badge font-mono text-[10px]">
+                <span className="font-mono text-[10px]">
                   <Star className="w-3 h-3 fill-accent-gold text-accent-gold" />
                   {movie.rating}
                 </span>

@@ -30,7 +30,7 @@ export const api = {
   auth: {
     register: (data) => request('/api/auth/register', { method: 'POST', body: JSON.stringify(data) }),
     login: (data) => request('/api/auth/login', { method: 'POST', body: JSON.stringify(data) }),
-    googleLogin: (data) => request('/api/auth/google', { method: 'POST', body: JSON.stringify(data) }),
+    google: (credential) => request('/api/auth/google', { method: 'POST', body: JSON.stringify({ credential }) }),
   },
   fixtures: {
     list: () => request('/api/fixtures'),
@@ -50,5 +50,25 @@ export const api = {
     profile: () => request('/api/users/profile'),
     updateProfile: (data) => request('/api/users/profile', { method: 'PATCH', body: JSON.stringify(data) }),
   },
+  movies: {
+    list: (params = {}) => {
+      const qs = new URLSearchParams();
+      if (params.query) qs.set('q', params.query);
+      if (params.genre) qs.set('genre', params.genre);
+      if (params.limit) qs.set('limit', String(params.limit));
+      const suffix = qs.toString() ? `?${qs.toString()}` : '';
+      return request(`/api/movies${suffix}`);
+    },
+    get: (id) => request(`/api/movies/${id}`),
+    create: (data) => request('/api/movies', { method: 'POST', body: JSON.stringify(data) }),
+    remove: (id) => request(`/api/movies/${id}`, { method: 'DELETE' }),
+    status: () => request('/api/movies/status'),
+    setStatus: (id, patch) => request(`/api/movies/${id}/status`, { method: 'PATCH', body: JSON.stringify(patch) }),
+  },
+  reviews: {
+    list: () => request('/api/reviews'),
+    create: (data) => request('/api/reviews', { method: 'POST', body: JSON.stringify(data) }),
+    update: (id, data) => request(`/api/reviews/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
+    delete: (id) => request(`/api/reviews/${id}`, { method: 'DELETE' }),
+  },
 };
-

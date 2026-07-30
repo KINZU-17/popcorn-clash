@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { X, Plus, Trash2, Copy, Check, MessageSquare, Clock } from 'lucide-react';
 import { fetchMovies } from '../utils/streamingApi';
 
-export default function CineJamLobby({ onClose, onAddMovieToLibrary }) {
+export default function CineJamLobby({ onClose, onCreateMovie }) {
   const [step, setStep] = useState(1);
   const [participants, setParticipants] = useState(['You']);
   const [selectedMoods, setSelectedMoods] = useState([]);
@@ -88,16 +88,16 @@ export default function CineJamLobby({ onClose, onAddMovieToLibrary }) {
 
   return (
     <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-      <div className="bg-[#0A0A0A] border border-white/10 w-full max-w-md max-h-[90vh] overflow-y-auto flex flex-col">
+      <div className="bg-[#0c0a09] border border-surface-container-high w-full max-w-md max-h-[90vh] overflow-y-auto flex flex-col">
 
-        <div className="sticky top-0 bg-[#0A0A0A] border-b border-white/10 p-6 flex items-center justify-between">
+        <div className="sticky top-0 bg-[#0c0a09] border-b border-surface-container-high p-6 flex items-center justify-between">
           <div>
             <h2 className="text-lg font-bold uppercase tracking-[0.2em] text-white">
               {step === 1 ? 'PopcornJam Lobby' : step === 2 ? 'Vibe & Genre' : 'Your Match!'}
             </h2>
-            <p className="text-[9px] text-white/40 uppercase tracking-[0.1em] mt-1 font-mono">Step {step} of 3</p>
+            <p className="text-[9px] text-on-surface-variant uppercase tracking-[0.1em] mt-1 font-mono">Step {step} of 3</p>
           </div>
-          <button onClick={onClose} className="p-2 text-white/50 hover:text-white transition-colors cursor-pointer">
+          <button onClick={onClose} className="p-2 text-white hover:text-white transition-colors cursor-pointer">
             <X className="w-5 h-5" />
           </button>
         </div>
@@ -109,9 +109,9 @@ export default function CineJamLobby({ onClose, onAddMovieToLibrary }) {
               {/* Invite link */}
               <div>
                 <label className="text-xs font-bold uppercase tracking-[0.2em] text-white mb-3 block">Invite Link</label>
-                <div className="flex items-center gap-2 p-3 bg-white/5 border border-white/10">
-                  <span className="flex-1 text-[10px] text-white/50 font-mono truncate">{partyLink}</span>
-                  <button onClick={handleCopyLink} className="text-white/40 hover:text-white transition-colors cursor-pointer shrink-0">
+                <div className="flex items-center gap-2 p-3 bg-surface-container-low border border-surface-container-high">
+                  <span className="flex-1 text-[10px] text-white font-mono truncate">{partyLink}</span>
+                  <button onClick={handleCopyLink} className="text-on-surface-variant hover:text-white transition-colors cursor-pointer shrink-0">
                     {copied ? <Check className="w-4 h-4 text-green-400" /> : <Copy className="w-4 h-4" />}
                   </button>
                 </div>
@@ -124,13 +124,13 @@ export default function CineJamLobby({ onClose, onAddMovieToLibrary }) {
                 </label>
                 <div className="space-y-3 mb-6">
                   {participants.map((p, idx) => (
-                    <div key={idx} className="flex items-center justify-between p-3 bg-white/5 border border-white/10">
+                    <div key={idx} className="flex items-center justify-between p-3 bg-surface-container-low border border-surface-container-high">
                       <div>
                         <p className="text-xs font-bold text-white">{p === 'You' ? 'You (Host)' : p}</p>
-                        <p className="text-[8px] text-white/40 mt-0.5">{p === 'You' ? 'Level 42 Cinephile' : 'Friend'}</p>
+                        <p className="text-[8px] text-on-surface-variant mt-0.5">{p === 'You' ? 'Level 42 Cinephile' : 'Friend'}</p>
                       </div>
                       {p !== 'You' && (
-                        <button onClick={() => handleRemoveFriend(p)} className="p-1 text-white/40 hover:text-red-400 transition-colors cursor-pointer">
+                        <button onClick={() => handleRemoveFriend(p)} className="p-1 text-on-surface-variant hover:text-red-400 transition-colors cursor-pointer">
                           <Trash2 className="w-4 h-4" />
                         </button>
                       )}
@@ -149,7 +149,7 @@ export default function CineJamLobby({ onClose, onAddMovieToLibrary }) {
                       <button
                         key={friend}
                         onClick={() => handleAddFriend(friend)}
-                        className="flex items-center gap-2 p-3 bg-white/5 border border-white/10 hover:border-white/20 text-xs text-white font-medium transition-all cursor-pointer text-left"
+                        className="flex items-center gap-2 p-3 bg-surface-container-low border border-surface-container-high hover:border-white/20 text-xs text-white font-medium transition-all cursor-pointer text-left"
                       >
                         <Plus className="w-4 h-4" />
                         {friend}
@@ -163,10 +163,10 @@ export default function CineJamLobby({ onClose, onAddMovieToLibrary }) {
                 <label className="text-xs font-bold uppercase tracking-[0.2em] text-white mb-3 flex items-center gap-2">
                   <MessageSquare className="w-3.5 h-3.5" /> Lobby Chat
                 </label>
-                <div className="bg-white/5 border border-white/10 p-3 space-y-2 max-h-32 overflow-y-auto mb-2">
+                <div className="bg-surface-container-low border border-surface-container-high p-3 space-y-2 max-h-32 overflow-y-auto mb-2">
                   {chatMessages.map(msg => (
                     <div key={msg.id} className="flex items-start gap-2">
-                      <span className={`text-[9px] font-bold uppercase tracking-wider shrink-0 ${msg.user === 'You' ? 'text-white' : 'text-white/50'}`}>{msg.user}</span>
+                      <span className={`text-[9px] font-bold uppercase tracking-wider shrink-0 ${msg.user === 'You' ? 'text-white' : 'text-white'}`}>{msg.user}</span>
                       <span className="text-[9px] text-white/60 flex-1">{msg.text}</span>
                       <span className="text-[8px] text-white/20 shrink-0">{msg.time}</span>
                     </div>
@@ -178,7 +178,7 @@ export default function CineJamLobby({ onClose, onAddMovieToLibrary }) {
                     onChange={e => setChatInput(e.target.value)}
                     onKeyDown={e => e.key === 'Enter' && handleSendChat()}
                     placeholder="Say something..."
-                    className="flex-1 bg-white/5 border-b border-white/10 focus:border-white px-3 py-2 text-[10px] outline-none text-white placeholder-white/20 transition-colors"
+                    className="flex-1 bg-surface-container-low border-b border-surface-container-high focus:border-white px-3 py-2 text-[10px] outline-none text-white placeholder-white/20 transition-colors"
                   />
                   <button onClick={handleSendChat} className="px-3 py-2 bg-white/10 hover:bg-white/20 text-white text-[10px] transition-colors cursor-pointer">
                     Send
@@ -200,7 +200,7 @@ export default function CineJamLobby({ onClose, onAddMovieToLibrary }) {
             <>
               <div>
                 <label className="text-xs font-bold uppercase tracking-[0.2em] text-white mb-2 block">Select Moods</label>
-                <p className="text-[9px] text-white/40 mb-4">Pick one or more moods that match your group's vibe</p>
+                <p className="text-[9px] text-on-surface-variant mb-4">Pick one or more moods that match your group's vibe</p>
                 <div className="grid grid-cols-2 gap-3 mb-6">
                   {moods.map(mood => (
                     <button
@@ -209,7 +209,7 @@ export default function CineJamLobby({ onClose, onAddMovieToLibrary }) {
                       className={`p-4 border transition-all text-center cursor-pointer ${
                         selectedMoods.includes(mood.name)
                           ? 'bg-white text-black border-white'
-                          : 'bg-white/5 border-white/10 text-white hover:border-white/20'
+                          : 'bg-surface-container-low border-surface-container-high text-white hover:border-white/20'
                       }`}
                     >
                       <p className="text-[9px] font-bold uppercase tracking-[0.1em]">{mood.name}</p>
@@ -230,7 +230,7 @@ export default function CineJamLobby({ onClose, onAddMovieToLibrary }) {
                       className={`py-2 px-1 border transition-all text-center cursor-pointer ${
                         selectedGenres.includes(genre)
                           ? 'bg-white text-black border-white'
-                          : 'bg-white/5 border-white/10 text-white/60 hover:border-white/20 hover:text-white'
+                          : 'bg-surface-container-low border-surface-container-high text-white/60 hover:border-white/20 hover:text-white'
                       }`}
                     >
                       <p className="text-[8px] font-bold uppercase tracking-[0.05em]">{genre}</p>
@@ -242,7 +242,7 @@ export default function CineJamLobby({ onClose, onAddMovieToLibrary }) {
               <div className="flex gap-3">
                 <button
                   onClick={() => setStep(1)}
-                  className="flex-1 py-3 border border-white/20 text-xs font-bold uppercase tracking-wider text-white hover:bg-white/5 transition-colors cursor-pointer"
+                  className="flex-1 py-3 border border-white/20 text-xs font-bold uppercase tracking-wider text-white hover:bg-surface-container-low transition-colors cursor-pointer"
                 >
                   Back
                 </button>
@@ -261,15 +261,15 @@ export default function CineJamLobby({ onClose, onAddMovieToLibrary }) {
             <>
               <div className="text-center mb-4">
                 <h3 className="text-sm font-bold uppercase tracking-[0.2em] text-white">Perfect Match Found!</h3>
-                <p className="text-[9px] text-white/40 mt-1 uppercase tracking-wider font-mono">
+                <p className="text-[9px] text-on-surface-variant mt-1 uppercase tracking-wider font-mono">
                   For {participants.join(', ')}
                 </p>
               </div>
 
               {/* Countdown */}
               {countdown !== null && countdown > 0 && (
-                <div className="flex items-center justify-center gap-2 p-3 bg-white/5 border border-white/10">
-                  <Clock className="w-3.5 h-3.5 text-white/40" />
+                <div className="flex items-center justify-center gap-2 p-3 bg-surface-container-low border border-surface-container-high">
+                  <Clock className="w-3.5 h-3.5 text-on-surface-variant" />
                   <span className="text-[10px] text-white/60 uppercase tracking-[0.15em]">Starting in</span>
                   <span className="text-lg font-bold font-mono text-white w-6 text-center">{countdown}</span>
                 </div>
@@ -281,8 +281,12 @@ export default function CineJamLobby({ onClose, onAddMovieToLibrary }) {
               )}
 
               <div className="mb-6">
-                <div className="w-full aspect-3/4 bg-linear-to-br from-white/10 to-white/5 border border-white/10 mb-4 overflow-hidden">
-                  <img src={matchedMovie.posterUrl} alt={matchedMovie.title} className="w-full h-full object-cover" />
+                <div className="w-full aspect-3/4 bg-linear-to-br from-white/10 to-white/5 border border-surface-container-high mb-4 overflow-hidden">
+                  {matchedMovie.posterUrl ? (
+                    <img src={matchedMovie.posterUrl} alt={matchedMovie.title} className="w-full h-full object-cover" />
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center text-[10px] uppercase tracking-[0.2em] text-surface-container-high">No Poster</div>
+                  )}
                 </div>
                 <h4 className="text-sm font-bold text-white mb-1">{matchedMovie.title}</h4>
                 <p className="text-[9px] text-white/60 mb-3">
@@ -293,13 +297,13 @@ export default function CineJamLobby({ onClose, onAddMovieToLibrary }) {
                 {/* Tags */}
                 <div className="flex flex-wrap gap-1.5 mb-4">
                   {[...selectedMoods, ...selectedGenres].map(tag => (
-                    <span key={tag} className="text-[8px] font-mono uppercase tracking-[0.1em] text-white/40 bg-white/5 border border-white/10 px-2 py-0.5">
+                    <span key={tag} className="text-[8px] font-mono uppercase tracking-[0.1em] text-on-surface-variant bg-surface-container-low border border-surface-container-high px-2 py-0.5">
                       {tag}
                     </span>
                   ))}
                 </div>
 
-                <div className="p-3 bg-white/5 border border-white/10">
+                <div className="p-3 bg-surface-container-low border border-surface-container-high">
                   <p className="text-[9px] font-bold uppercase tracking-[0.1em] text-white/60 mb-2">Overview</p>
                   <p className="text-[9px] text-white/60">{matchedMovie.overview}</p>
                 </div>
@@ -308,12 +312,12 @@ export default function CineJamLobby({ onClose, onAddMovieToLibrary }) {
               <div className="flex gap-3">
                 <button
                   onClick={() => { setStep(2); setMatchedMovie(null); setSelectedMoods([]); setCountdown(null); }}
-                  className="flex-1 py-3 border border-white/20 text-xs font-bold uppercase tracking-wider text-white hover:bg-white/5 transition-colors cursor-pointer"
+                  className="flex-1 py-3 border border-white/20 text-xs font-bold uppercase tracking-wider text-white hover:bg-surface-container-low transition-colors cursor-pointer"
                 >
                   Re-Match
                 </button>
                 <button
-                  onClick={() => { onAddMovieToLibrary({ ...matchedMovie, status: 'watchlist', isFavorite: false }); onClose(); }}
+                  onClick={() => { onCreateMovie(matchedMovie); onClose(); }}
                   className="flex-1 py-3 bg-white text-black font-bold uppercase tracking-[0.2em] text-xs transition-all hover:bg-neutral-200 active:scale-95 cursor-pointer"
                 >
                   Save & Watch
