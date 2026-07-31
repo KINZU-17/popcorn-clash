@@ -1,23 +1,17 @@
-import logging
-import structlog
+import os
+from pathlib import Path
+from dotenv import load_dotenv
+
+# Ensure environment variables are loaded BEFORE blueprints/utils import
+env_path = Path(__file__).resolve().parent.parent / ".env"
+load_dotenv(dotenv_path=env_path)
+
 from flask import Flask, jsonify, request
 from flask_cors import CORS
 from flask_migrate import Migrate
 from app.extensions import db
 from app.database.connection import init_db, seed_database
-
-structlog.configure(
-    processors=[
-        structlog.processors.TimeStamper(fmt="iso"),
-        structlog.processors.add_log_level,
-        structlog.processors.JSONRenderer(),
-    ],
-    wrapper_class=structlog.make_filtering_bound_logger(logging.INFO),
-    context_class=dict,
-    logger_factory=structlog.PrintLoggerFactory(),
-)
-
-logger = structlog.get_logger()
+from app.utils.logger import logger
 
 
 def create_app():
@@ -48,6 +42,7 @@ def create_app():
         init_db()
         seed_database()
 
+    # Import blueprints after env vars are loaded
     from app.routes.auth import auth_bp
     from app.routes.teams import teams_bp
     from app.routes.fixtures import fixtures_bp
@@ -64,9 +59,17 @@ def create_app():
     app.register_blueprint(movies_bp)
     app.register_blueprint(reviews_bp)
 
-    logger.info("Application initialized", routes=[
-        "auth", "teams", "fixtures", "predictions",
-        "users", "movies", "reviews",
-    ])
+    logger.info(
+        "Application initialized",
+        routes=[
+            "auth",
+            "teams",
+            "fixtures",
+            "predictions",
+            "users",
+            "movies",
+            "reviews",
+        ],
+    )
 
     return app

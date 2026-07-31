@@ -3,6 +3,7 @@ from flask import request, jsonify
 import secrets
 from flask_bcrypt import Bcrypt
 
+from app.database.queries import get_user_by_id
 bcrypt = Bcrypt()
 _active_tokens = {}
 
@@ -32,13 +33,23 @@ def login_required(fn):
     return wrapper
 
 
+def token_required(fn):
+    @wraps(fn)
+    def wrapper(*args, **kwargs):
+        user_id = _current_user_id()
+        if not user_id:
+            return jsonify({"error": "Unauthorized"}), 401
+        current_user = get_user_by_id(user_id)
+        return fn(*args, current_user=current_user, **kwargs)
+    return wrapper
+
+
 def admin_required(fn):
     @wraps(fn)
     def wrapper(*args, **kwargs):
         user_id = _current_user_id()
         if not user_id:
             return jsonify({"error": "Unauthorized"}), 401
-        from app.database.queries import get_user_by_id
         user = get_user_by_id(user_id)
         if not user or user.get("role") != "admin":
             return jsonify({"error": "Forbidden: admin access required"}), 403

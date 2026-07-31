@@ -52,7 +52,11 @@ export const api = {
     register: (data) => request('/api/auth/register', { method: 'POST', body: JSON.stringify(data) }),
     login: (data) => request('/api/auth/login', { method: 'POST', body: JSON.stringify(data) }),
     google: (credential) => request('/api/auth/google', { method: 'POST', body: JSON.stringify({ credential }) }),
+    forgotPassword: (email) => request('/api/auth/forgot-password', { method: 'POST', body: JSON.stringify({ email }) }),
+    resetPassword: ({ email, code, token, newPassword }) => request('/api/auth/reset-password', { method: 'POST', body: JSON.stringify({ email, code, token, new_password: newPassword, password: newPassword }) }),
   },
+
+
   fixtures: {
     list: () => request('/api/fixtures'),
     get: (id) => request(`/api/fixtures/${id}`),

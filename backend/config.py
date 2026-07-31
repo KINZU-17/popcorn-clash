@@ -2,7 +2,9 @@ import os
 from pathlib import Path
 from dotenv import load_dotenv
 
-load_dotenv()
+# Load .env from the backend directory (where this config file is located)
+basedir = Path(__file__).parent
+load_dotenv(basedir / '.env')
 
 
 class Config:

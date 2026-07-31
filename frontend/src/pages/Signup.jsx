@@ -3,7 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useGame } from '../context/GameStateContext';
 import { api } from '../utils/backendApi';
 import { GoogleLogin } from '@react-oauth/google';
-import { Eye, EyeOff } from 'lucide-react';
+import { Eye, EyeOff, CheckCircle, XCircle } from 'lucide-react';
 import AuthBackground from '../components/AuthBackground';
 import logo from '../assets/logo.png';
 
@@ -73,6 +73,12 @@ export default function Signup() {
   const [showPassword, setShowPassword] = useState(false);
   const navigate = useNavigate();
   const { setUser, loginWithGoogle } = useGame();
+  const [passwordValidations, setPasswordValidations] = useState({
+    length: false,
+    capital: false,
+    lowercase: false,
+    special: false,
+  });
 
   useEffect(() => {
     async function loadTeams() {
@@ -85,6 +91,15 @@ export default function Signup() {
     }
     loadTeams();
   }, []);
+
+  useEffect(() => {
+    setPasswordValidations({
+      length: form.password.length >= 8,
+      capital: /[A-Z]/.test(form.password),
+      lowercase: /[a-z]/.test(form.password),
+      special: /[!@#$%^&*]/.test(form.password),
+    });
+  }, [form.password]);
 
   const apiLeagues = [...new Set(teams.map(t => t.league).filter(Boolean))];
   const apiClubsInLeague = (league) => teams.filter(t => t.league === league);
@@ -162,6 +177,40 @@ export default function Signup() {
                 >
                   {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                 </button>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-1 text-xs mt-2">
+                <div className="flex items-center space-x-2">
+                  {passwordValidations.length ? (
+                    <CheckCircle className="w-3.5 h-3.5 text-green-400" />
+                  ) : (
+                    <XCircle className="w-3.5 h-3.5 text-red-400" />
+                  )}
+                  <span className={passwordValidations.length ? 'text-gray-300' : 'text-gray-400'}>At least 8 characters</span>
+                </div>
+                <div className="flex items-center space-x-2">
+                  {passwordValidations.capital ? (
+                    <CheckCircle className="w-3.5 h-3.5 text-green-400" />
+                  ) : (
+                    <XCircle className="w-3.5 h-3.5 text-red-400" />
+                  )}
+                  <span className={passwordValidations.capital ? 'text-gray-300' : 'text-gray-400'}>An uppercase letter</span>
+                </div>
+                <div className="flex items-center space-x-2">
+                  {passwordValidations.lowercase ? (
+                    <CheckCircle className="w-3.5 h-3.5 text-green-400" />
+                  ) : (
+                    <XCircle className="w-3.5 h-3.5 text-red-400" />
+                  )}
+                  <span className={passwordValidations.lowercase ? 'text-gray-300' : 'text-gray-400'}>A lowercase letter</span>
+                </div>
+                <div className="flex items-center space-x-2">
+                  {passwordValidations.special ? (
+                    <CheckCircle className="w-3.5 h-3.5 text-green-400" />
+                  ) : (
+                    <XCircle className="w-3.5 h-3.5 text-red-400" />
+                  )}
+                  <span className={passwordValidations.special ? 'text-gray-300' : 'text-gray-400'}>A special character</span>
+                </div>
               </div>
             </div>
             <div>

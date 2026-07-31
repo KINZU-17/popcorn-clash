@@ -263,3 +263,34 @@ def update_user_movie_status(user_id: int, movie_id: int, status: str = None, is
                 (user_id, movie_id, new_status, new_fav)
             )
 
+
+def create_password_reset(email: str, code: str, expires_at: str) -> None:
+    with get_cursor() as cur:
+        # Invalidate prior unused codes for this email
+        cur.execute("UPDATE password_resets SET used = 1 WHERE email = ?", (email,))
+        cur.execute(
+            "INSERT INTO password_resets (email, code, expires_at) VALUES (?, ?, ?)",
+            (email, code, expires_at),
+        )
+
+
+def verify_and_use_reset_code(email: str, code: str) -> bool:
+    with get_cursor() as cur:
+        cur.execute(
+            "SELECT id, expires_at, used FROM password_resets WHERE email = ? AND code = ? AND used = 0 ORDER BY id DESC LIMIT 1",
+            (email, code),
+        )
+        row = cur.fetchone()
+        if not row:
+            return False
+
+        # Mark as used
+        cur.execute("UPDATE password_resets SET used = 1 WHERE id = ?", (row["id"],))
+        return True
+
+
+def update_user_password(email: str, password_hash: str) -> None:
+    with get_cursor() as cur:
+        cur.execute("UPDATE users SET password_hash = ? WHERE email = ?", (password_hash, email))
+
+
