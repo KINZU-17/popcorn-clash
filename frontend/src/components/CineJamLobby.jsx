@@ -14,7 +14,7 @@ export default function CineJamLobby({ onClose, onCreateMovie }) {
   const [chatMessages, setChatMessages] = useState([]);
   const [chatInput, setChatInput] = useState('');
 
-  const availableFriends = [];
+  const availableFriends = ['Alex Rivera', 'Sam Kelo', 'Rita Okafor'];
 
   const moods = [
     { name: 'Moody Neon' }, { name: 'Deep Space' }, { name: 'Cosy Cottage' },
