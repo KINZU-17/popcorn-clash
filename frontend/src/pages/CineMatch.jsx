@@ -16,6 +16,9 @@ import Analytics from './Analytics';
 import Profile from './Profile';
 import MatchArena from './MatchArena';
 import CreateFixture from './CreateFixture';
+import AdminDashboard from './AdminDashboard';
+import TmdbStreamModal from '../components/TmdbStreamModal';
+import { api } from '../utils/backendApi';
 
 export default function CineMatch() {
   const navigate = useNavigate();
@@ -25,7 +28,13 @@ export default function CineMatch() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [showCineJam, setShowCineJam] = useState(false);
+  const [showTmdbModal, setShowTmdbModal] = useState(false);
   const [activePlayingMovie, setActivePlayingMovie] = useState(null);
+
+  useEffect(() => {
+    window.openTmdbModal = () => setShowTmdbModal(true);
+    return () => { delete window.openTmdbModal; };
+  }, []);
 
   const [activeTab, setActiveTab] = useState(() => {
     const saved = localStorage.getItem('popcornclash_tab');
@@ -46,6 +55,7 @@ export default function CineMatch() {
     if (location.pathname === '/leaderboard') return 'leaderboard';
     if (location.pathname === '/analytics') return 'analytics';
     if (location.pathname === '/profile') return 'profile';
+    if (location.pathname === '/admin') return 'admin';
     if (location.pathname === '/movies') return 'movies';
     return 'home';
   };
@@ -59,17 +69,32 @@ export default function CineMatch() {
     const saved = localStorage.getItem('popcornclash_collections');
     return saved ? JSON.parse(saved) : [];
   });
-  const [history, setHistory] = useState(() => {
-    const saved = localStorage.getItem('popcornclash_history');
-    return saved ? JSON.parse(saved) : [];
-  });
+  const [history, setHistory] = useState([]);
+
+  // Fetch watch history from backend
+  useEffect(() => {
+    const loadHistory = async () => {
+      try {
+        const res = await api.history.list();
+        if (res.history) {
+          setHistory(res.history.map(h => ({
+            id: h.id,
+            title: h.title,
+            watchedAt: h.watched_at || 'Recently',
+            progress: h.progress || 100,
+            posterUrl: h.poster_url,
+          })));
+        }
+      } catch (err) {
+        console.error('Failed to load watch history:', err);
+      }
+    };
+    loadHistory();
+  }, []);
 
   useEffect(() => { localStorage.setItem('popcornclash_collections', JSON.stringify(collections)); }, [collections]);
-  useEffect(() => { localStorage.setItem('popcornclash_history', JSON.stringify(history)); }, [history]);
   useEffect(() => { localStorage.setItem('popcornclash_tab', activeTab); }, [activeTab]);
 
-  // Movies are owned by the backend (/api/movies); status/favorite are
-  // persisted per-user via PATCH /api/movies/:id/status (setMovieStatus).
   const handleDeleteMovie = async (id) => { await deleteMovie(id); };
 
   const handleUpdateMovieStatus = async (id, patch) => {
@@ -87,20 +112,32 @@ export default function CineMatch() {
 
   const handleDeleteCollection = async (id) => setCollections(collections.filter((c) => c.id !== id));
 
-  const handleDeleteHistory = async (id) => setHistory(history.filter((h) => h.id !== id));
+  const handleDeleteHistory = async (id) => {
+    setHistory(history.filter((h) => h.id !== id));
+    try {
+      await api.history.delete(id);
+    } catch (err) {
+      console.error('Failed to delete history:', err);
+    }
+  };
 
   const handleReplayMovie = async (movie) => {
     await handleUpdateMovieStatus(movie.id, { status: 'watching' });
-    setHistory([{ id: Math.random().toString(36).substring(2, 9), title: movie.title, watchedAt: 'Just now', progress: 5, posterUrl: movie.posterUrl }, ...history]);
     setActivePlayingMovie({ ...movie, progress: 0, status: 'watching' });
   };
 
   const handleProgressUpdate = async (id, progressVal, status) => {
     await handleUpdateMovieStatus(id, { status });
     if (progressVal >= 100) {
-      const target = movies.find((m) => m.id === id);
+      const target = movies.find((m) => m.id === id) || activePlayingMovie;
       if (target) {
-        setHistory([{ id: Math.random().toString(36).substring(2, 9), title: target.title, watchedAt: 'Just now', progress: 100, posterUrl: target.posterUrl }, ...history]);
+        const newEntry = { id: Date.now(), title: target.title, watchedAt: 'Just now', progress: 100, posterUrl: target.posterUrl };
+        setHistory(prev => [newEntry, ...prev]);
+        try {
+          await api.history.create({ title: target.title, poster_url: target.posterUrl, progress: 100 });
+        } catch (err) {
+          console.error('Failed to save history:', err);
+        }
       }
     }
   };
@@ -125,6 +162,20 @@ export default function CineMatch() {
               searchQueryFromHeader={searchQuery} onPlayMovie={setActivePlayingMovie}
             />
           )}
+          {activeTab === 'anime' && (
+            <DiscoverView
+              mode="anime"
+              onCreateMovie={createMovie}
+              searchQueryFromHeader={searchQuery} onPlayMovie={setActivePlayingMovie}
+            />
+          )}
+          {activeTab === 'series' && (
+            <DiscoverView
+              mode="series"
+              onCreateMovie={createMovie}
+              searchQueryFromHeader={searchQuery} onPlayMovie={setActivePlayingMovie}
+            />
+          )}
           {activeTab === 'stats' && <StatsView movies={movies} />}
           {activeTab === 'companion' && <LiveCompanion />}
         </>
@@ -134,7 +185,8 @@ export default function CineMatch() {
     if (activePage === 'match') return <MatchArena matchId={activeMatchId} />;
     if (activePage === 'leaderboard') return <Leaderboard />;
     if (activePage === 'analytics') return <Analytics />;
-    if (activePage === 'profile') return <Profile />;
+    if (activePage === 'profile') return <Profile movies={movies} collections={collections} history={history} />;
+    if (activePage === 'admin') return <AdminDashboard movies={movies} onDeleteMovie={handleDeleteMovie} />;
     if (activePage === 'create-fixture') return <CreateFixture />;
     return null;
   };
@@ -179,7 +231,8 @@ export default function CineMatch() {
         </main>
       </div>
 
-      {showCineJam && <CineJamLobby onClose={() => setShowCineJam(false)} onCreateMovie={createMovie} />}
+      {showCineJam && <CineJamLobby onClose={() => setShowCineJam(false)} onCreateMovie={createMovie} onPlayMovie={setActivePlayingMovie} />}
+      <TmdbStreamModal isOpen={showTmdbModal} onClose={() => setShowTmdbModal(false)} onPlayMovie={setActivePlayingMovie} onCreateMovie={createMovie} />
       {activePlayingMovie && <MoviePlayer movie={activePlayingMovie} onClose={() => setActivePlayingMovie(null)} onProgressUpdate={handleProgressUpdate} />}
     </div>
   );

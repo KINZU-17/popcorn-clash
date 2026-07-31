@@ -1,12 +1,31 @@
 from flask import Blueprint, request
 from flask_restful import Resource, Api
-from app.database.queries import get_user_by_id, update_user_profile, get_user_predictions
+from app.database.queries import (
+    get_user_by_id,
+    update_user_profile,
+    get_user_predictions,
+    update_user_role,
+    delete_user,
+    get_stats,
+    search_users,
+)
 from app.utils.auth import login_required, admin_required
 from app.utils.schemas import ProfileUpdateSchema
 
 users_bp = Blueprint("users", __name__, url_prefix="/api/users")
 users_api = Api(users_bp)
 profile_update_schema = ProfileUpdateSchema()
+
+
+from app.utils.auth import login_required, admin_required, _current_user_id
+
+class UserSearchResource(Resource):
+    def get(self):
+        q = request.args.get("q", "").strip()
+        user_id = _current_user_id()
+        users = search_users(q, user_id)
+        return {"users": users}
+
 
 
 class ProfileResource(Resource):
@@ -65,7 +84,6 @@ class ProfileResource(Resource):
 class UserListResource(Resource):
     @admin_required
     def get(self):
-        from app.database.queries import get_all_teams
         from app.database.connection import get_cursor
 
         with get_cursor() as cur:
@@ -78,5 +96,45 @@ class UserListResource(Resource):
         return {"users": users}
 
 
+class UserRoleResource(Resource):
+    @admin_required
+    def patch(self, user_id):
+        data = request.get_json(silent=True) or {}
+        role = data.get("role")
+        if role not in ("member", "admin"):
+            return {"error": "Role must be 'member' or 'admin'"}, 400
+        # Prevent demoting yourself
+        if user_id == request.user_id and role != "admin":
+            return {"error": "Cannot change your own admin role"}, 400
+        update_user_role(user_id, role)
+        user = get_user_by_id(user_id)
+        if not user:
+            return {"error": "User not found"}, 404
+        return {"user": {"id": user["id"], "username": user["username"], "role": user["role"]}}
+
+
+class UserDeleteResource(Resource):
+    @admin_required
+    def delete(self, user_id):
+        if user_id == request.user_id:
+            return {"error": "Cannot delete your own account"}, 400
+        user = get_user_by_id(user_id)
+        if not user:
+            return {"error": "User not found"}, 404
+        delete_user(user_id)
+        return {"deleted": True}
+
+
+class StatsResource(Resource):
+    @admin_required
+    def get(self):
+        stats = get_stats()
+        return {"stats": stats}
+
+
 users_api.add_resource(ProfileResource, "/profile")
+users_api.add_resource(UserSearchResource, "/search")
 users_api.add_resource(UserListResource, "/")
+users_api.add_resource(UserRoleResource, "/<int:user_id>/role")
+users_api.add_resource(UserDeleteResource, "/<int:user_id>")
+users_api.add_resource(StatsResource, "/stats")

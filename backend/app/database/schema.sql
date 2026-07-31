@@ -86,5 +86,15 @@ CREATE TABLE IF NOT EXISTS password_resets (
     used INTEGER DEFAULT 0,
     created_at TEXT DEFAULT CURRENT_TIMESTAMP
 );
+CREATE TABLE IF NOT EXISTS watch_history (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id INTEGER NOT NULL,
+    movie_id INTEGER,
+    title TEXT NOT NULL,
+    poster_url TEXT,
+    progress INTEGER DEFAULT 100,
+    watched_at TEXT DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES users(id)
+);
 
 

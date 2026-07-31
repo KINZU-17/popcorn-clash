@@ -53,6 +53,7 @@ export const api = {
   users: {
     profile: () => request('/api/users/profile'),
     updateProfile: (data) => request('/api/users/profile', { method: 'PATCH', body: JSON.stringify(data) }),
+    search: (query = '') => request(`/api/users/search?q=${encodeURIComponent(query)}`),
   },
   movies: {
     list: (params = {}) => {
@@ -75,4 +76,16 @@ export const api = {
     update: (id, data) => request(`/api/reviews/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
     delete: (id) => request(`/api/reviews/${id}`, { method: 'DELETE' }),
   },
+  history: {
+    list: () => request('/api/history'),
+    create: (data) => request('/api/history', { method: 'POST', body: JSON.stringify(data) }),
+    delete: (id) => request(`/api/history/${id}`, { method: 'DELETE' }),
+  },
+  admin: {
+    listUsers: () => request('/api/users'),
+    updateUserRole: (id, role) => request(`/api/users/${id}/role`, { method: 'PATCH', body: JSON.stringify({ role }) }),
+    deleteUser: (id) => request(`/api/users/${id}`, { method: 'DELETE' }),
+    getStats: () => request('/api/users/stats'),
+  },
 };
+

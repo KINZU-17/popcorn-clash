@@ -1,10 +1,12 @@
-import { useState, useEffect } from 'react';
-import { X, Plus, Trash2, Copy, Check, MessageSquare, Clock } from 'lucide-react';
+import { useState, useEffect, useCallback } from 'react';
+import { X, Plus, Trash2, Copy, Check, MessageSquare, Clock, Search, UserCheck } from 'lucide-react';
 import { fetchMovies } from '../utils/streamingApi';
+import { api } from '../utils/backendApi';
 
-export default function CineJamLobby({ onClose, onCreateMovie }) {
+export default function CineJamLobby({ onClose, onCreateMovie, onPlayMovie }) {
   const [step, setStep] = useState(1);
   const [participants, setParticipants] = useState(['You']);
+  const [participantDetails, setParticipantDetails] = useState({ You: 'Host • Level 42' });
   const [selectedMoods, setSelectedMoods] = useState([]);
   const [selectedGenres, setSelectedGenres] = useState([]);
   const [matchedMovie, setMatchedMovie] = useState(null);
@@ -14,7 +16,26 @@ export default function CineJamLobby({ onClose, onCreateMovie }) {
   const [chatMessages, setChatMessages] = useState([]);
   const [chatInput, setChatInput] = useState('');
 
-  const availableFriends = [];
+  // User search state from database
+  const [userQuery, setUserQuery] = useState('');
+  const [dbUsers, setDbUsers] = useState([]);
+  const [searchingUsers, setSearchingUsers] = useState(false);
+
+  const searchDatabaseUsers = useCallback(async (queryText = '') => {
+    setSearchingUsers(true);
+    try {
+      const res = await api.users.search(queryText);
+      setDbUsers(res.users || []);
+    } catch (err) {
+      console.error('Failed to search database users:', err);
+    } finally {
+      setSearchingUsers(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    searchDatabaseUsers('');
+  }, [searchDatabaseUsers]);
 
   const moods = [
     { name: 'Moody Neon' }, { name: 'Deep Space' }, { name: 'Cosy Cottage' },
@@ -32,13 +53,30 @@ export default function CineJamLobby({ onClose, onCreateMovie }) {
     return () => clearTimeout(t);
   }, [countdown]);
 
-  const handleAddFriend = (friend) => {
-    const name = friend.replace(' (You)', '');
-    if (!participants.includes(name) && participants.length < 5) setParticipants([...participants, name]);
+  // Auto-play movie when countdown reaches 0
+  useEffect(() => {
+    if (countdown === 0 && matchedMovie && onPlayMovie) {
+      onCreateMovie(matchedMovie);
+      onPlayMovie(matchedMovie);
+      onClose();
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [countdown]);
+
+  const handleAddFriend = (userObj) => {
+    const name = typeof userObj === 'string' ? userObj : userObj.username;
+    const detail = typeof userObj === 'string' ? 'Friend' : `Level ${userObj.current_level || 1} • ${userObj.favorite_club || 'Cinephile'}`;
+
+    if (!participants.includes(name) && participants.length < 5) {
+      setParticipants(prev => [...prev, name]);
+      setParticipantDetails(prev => ({ ...prev, [name]: detail }));
+    }
   };
 
   const handleRemoveFriend = (friend) => {
-    if (friend !== 'You') setParticipants(participants.filter(f => f !== friend));
+    if (friend !== 'You') {
+      setParticipants(participants.filter(f => f !== friend));
+    }
   };
 
   const handleToggleMood = (name) =>
@@ -127,7 +165,7 @@ export default function CineJamLobby({ onClose, onCreateMovie }) {
                     <div key={idx} className="flex items-center justify-between p-3 bg-surface-container-low border border-surface-container-high">
                       <div>
                         <p className="text-xs font-bold text-white">{p === 'You' ? 'You (Host)' : p}</p>
-                        <p className="text-[8px] text-on-surface-variant mt-0.5">{p === 'You' ? 'Level 42 Cinephile' : 'Friend'}</p>
+                        <p className="text-[8px] text-on-surface-variant mt-0.5">{participantDetails[p] || (p === 'You' ? 'Level 42 Cinephile' : 'Registered User')}</p>
                       </div>
                       {p !== 'You' && (
                         <button onClick={() => handleRemoveFriend(p)} className="p-1 text-on-surface-variant hover:text-red-400 transition-colors cursor-pointer">
@@ -139,22 +177,100 @@ export default function CineJamLobby({ onClose, onCreateMovie }) {
                 </div>
               </div>
 
-              {/* Add friends */}
+              {/* Add friends from database search & custom invite */}
               <div>
-                <label className="text-xs font-bold uppercase tracking-[0.2em] text-white mb-3 block">Add Friends</label>
-                <div className="grid gap-2 mb-6">
-                  {availableFriends
-                    .filter(f => !participants.includes(f.replace(' (You)', '')))
-                    .map(friend => (
-                      <button
-                        key={friend}
-                        onClick={() => handleAddFriend(friend)}
-                        className="flex items-center gap-2 p-3 bg-surface-container-low border border-surface-container-high hover:border-white/20 text-xs text-white font-medium transition-all cursor-pointer text-left"
-                      >
-                        <Plus className="w-4 h-4" />
-                        {friend}
-                      </button>
-                    ))}
+                <div className="flex items-center justify-between mb-2">
+                  <label className="text-xs font-bold uppercase tracking-[0.2em] text-white">
+                    Database Users & Friends ({dbUsers.length})
+                  </label>
+                  <span className="text-[9px] text-white/40 font-mono">Click + Add to invite</span>
+                </div>
+
+                <div className="relative mb-3">
+                  <Search className="w-3.5 h-3.5 absolute left-3 top-3 text-white/40" />
+                  <input
+                    type="text"
+                    placeholder="Search database users by username or email..."
+                    value={userQuery}
+                    onChange={(e) => {
+                      setUserQuery(e.target.value);
+                      searchDatabaseUsers(e.target.value);
+                    }}
+                    className="w-full bg-surface-container-low border border-surface-container-high focus:border-white pl-9 pr-3 py-2 text-xs text-white placeholder-white/30 outline-none transition-colors"
+                  />
+                </div>
+
+                <div className="space-y-2 mb-4 max-h-48 overflow-y-auto pr-1 border border-surface-container-high/50 p-2 bg-surface-container-lowest/50">
+                  {searchingUsers ? (
+                    <p className="text-[10px] text-white/40 font-mono py-3 text-center">Loading database users...</p>
+                  ) : dbUsers.length === 0 ? (
+                    <p className="text-[10px] text-white/40 font-mono py-3 text-center">No users match your query.</p>
+                  ) : (
+                    dbUsers.map(u => {
+                      const isAdded = participants.includes(u.username);
+                      return (
+                        <div
+                          key={u.id}
+                          className={`flex items-center justify-between p-2.5 border transition-all ${
+                            isAdded
+                              ? 'bg-white/5 border-white/10 opacity-60'
+                              : 'bg-surface-container-low border-surface-container-high hover:border-white/30'
+                          }`}
+                        >
+                          <div>
+                            <p className="text-xs font-bold text-white flex items-center gap-1.5">
+                              <span>{u.username}</span>
+                              {u.email && <span className="text-[9px] text-white/40 font-mono">({u.email})</span>}
+                            </p>
+                            <p className="text-[8px] text-on-surface-variant mt-0.5 font-mono">
+                              Level {u.current_level || 1} &bull; {u.favorite_club || 'Cinephile'}
+                            </p>
+                          </div>
+                          {isAdded ? (
+                            <span className="text-[9px] font-bold text-emerald-400 font-mono flex items-center gap-1 px-2 py-1 bg-emerald-500/10 border border-emerald-500/20">
+                              <UserCheck className="w-3 h-3" /> In Jam
+                            </span>
+                          ) : (
+                            <button
+                              onClick={() => handleAddFriend(u)}
+                              disabled={participants.length >= 5}
+                              className="px-3 py-1 bg-white hover:bg-neutral-200 text-black font-bold text-[10px] uppercase tracking-wider transition-all cursor-pointer disabled:opacity-40 flex items-center gap-1 shadow-sm"
+                            >
+                              <Plus className="w-3 h-3" /> Add to Jam
+                            </button>
+                          )}
+                        </div>
+                      );
+                    })
+                  )}
+                </div>
+
+                {/* Custom friend name manual add */}
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    placeholder="Or type a guest friend name..."
+                    id="customFriendInput"
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' && e.target.value.trim()) {
+                        handleAddFriend(e.target.value.trim());
+                        e.target.value = '';
+                      }
+                    }}
+                    className="flex-1 bg-surface-container-low border border-surface-container-high focus:border-white px-3 py-1.5 text-[10px] text-white placeholder-white/30 outline-none transition-colors"
+                  />
+                  <button
+                    onClick={() => {
+                      const input = document.getElementById('customFriendInput');
+                      if (input && input.value.trim()) {
+                        handleAddFriend(input.value.trim());
+                        input.value = '';
+                      }
+                    }}
+                    className="px-3 py-1.5 bg-white/10 hover:bg-white/20 text-white text-[10px] font-bold uppercase tracking-wider transition-colors cursor-pointer"
+                  >
+                    + Add Guest
+                  </button>
                 </div>
               </div>
 
