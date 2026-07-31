@@ -20,10 +20,6 @@ def _check_password(password: str, hashed: str) -> bool:
     return bcrypt.check_password_hash(hashed, password)
 
 
-def _check_password(password: str, hashed: str) -> bool:
-    return bcrypt.check_password_hash(hashed, password)
-
-
 class GoogleAuthResource(Resource):
     def post(self):
         data = request.get_json(silent=True) or {}

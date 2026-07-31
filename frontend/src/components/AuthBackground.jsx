@@ -1,10 +1,14 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 
 export default function AuthBackground({ api }) {
   const [movies, setMovies] = useState([]);
   const [index, setIndex] = useState(0);
+  const [hasError, setHasError] = useState(false);
+  const loaded = useRef(false);
 
   useEffect(() => {
+    if (loaded.current || hasError) return;
+    loaded.current = true;
     let cancelled = false;
     async function load() {
       try {
@@ -14,12 +18,15 @@ export default function AuthBackground({ api }) {
           .map((m) => ({ url: m.poster_url, title: m.title }));
         if (!cancelled) setMovies(items);
       } catch (err) {
-        console.error('Failed to load posters for auth background:', err);
+        if (!cancelled) {
+          console.error('Failed to load posters for auth background:', err);
+          setHasError(true);
+        }
       }
     }
     load();
     return () => { cancelled = true; };
-  }, [api.movies]);
+  }, [api.movies, hasError]);
 
   const next = useCallback(() => {
     setIndex((prev) => (movies.length ? (prev + 1) % movies.length : 0));

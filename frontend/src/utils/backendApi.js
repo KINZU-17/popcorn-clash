@@ -1,4 +1,14 @@
 const API_BASE = import.meta.env.VITE_BACKEND_URL || 'http://localhost:5000';
+const REQUEST_TIMEOUT = 10000;
+
+function fetchWithTimeout(url, options, timeout = REQUEST_TIMEOUT) {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeout);
+
+  return fetch(url, { ...options, signal: controller.signal }).finally(() => {
+    clearTimeout(timer);
+  });
+}
 
 async function request(path, options = {}) {
   const url = `${API_BASE}${path}`;
@@ -12,10 +22,21 @@ async function request(path, options = {}) {
     headers['Authorization'] = `Bearer ${token}`;
   }
 
-  const res = await fetch(url, {
-    ...options,
-    headers,
-  });
+  let res;
+  try {
+    res = await fetchWithTimeout(url, {
+      ...options,
+      headers,
+    });
+  } catch (err) {
+    if (err.name === 'AbortError') {
+      throw new Error('Request timed out. Please try again.');
+    }
+    if (err.message === 'Failed to fetch' || err.type === 'error') {
+      throw new Error('Network error. Unable to reach the server.');
+    }
+    throw new Error(err.message || 'Request failed');
+  }
 
   if (!res.ok) {
     const error = await res.json().catch(() => ({ error: 'Request failed' }));
