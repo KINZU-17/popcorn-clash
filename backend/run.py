@@ -1,5 +1,5 @@
+import os
 from app import create_app
-from app.database.connection import init_db, seed_database
 
 app = create_app()
 
@@ -8,6 +8,7 @@ def home():
     return "Welcome to the Popcorn Clash API!"
 
 if __name__ == "__main__":
-    init_db()
-    seed_database()
-    app.run(host="0.0.0.0", port=5555, debug=True)
+    # Note: init_db() and seed_database() are already executed 
+    # inside app/__init__.py within app.app_context()
+    port = int(os.environ.get("PORT", 5555))
+    app.run(host="0.0.0.0", port=port, debug=True)
