@@ -50,6 +50,7 @@ def create_app():
     from app.routes.users import users_bp
     from app.routes.movies import movies_bp
     from app.routes.reviews import reviews_bp
+    from app.routes.history import history_bp
 
     app.register_blueprint(auth_bp)
     app.register_blueprint(teams_bp)
@@ -58,6 +59,7 @@ def create_app():
     app.register_blueprint(users_bp)
     app.register_blueprint(movies_bp)
     app.register_blueprint(reviews_bp)
+    app.register_blueprint(history_bp)
 
     logger.info(
         "Application initialized",

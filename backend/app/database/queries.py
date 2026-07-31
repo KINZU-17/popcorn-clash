@@ -26,6 +26,28 @@ def create_user(username: str, email: str, password_hash: str, favorite_club: st
         return cur.lastrowid
 
 
+def search_users(query: str = "", current_user_id: int | None = None) -> list[dict]:
+    with get_cursor() as cur:
+        search_pattern = f"%{query}%"
+        if current_user_id:
+            cur.execute("""
+                SELECT id, username, email, favorite_club, current_level, total_xp
+                FROM users
+                WHERE id != ? AND (username LIKE ? OR email LIKE ?)
+                ORDER BY username ASC
+                LIMIT 50
+            """, (current_user_id, search_pattern, search_pattern))
+        else:
+            cur.execute("""
+                SELECT id, username, email, favorite_club, current_level, total_xp
+                FROM users
+                WHERE username LIKE ? OR email LIKE ?
+                ORDER BY username ASC
+                LIMIT 50
+            """, (search_pattern, search_pattern))
+        return [dict(row) for row in cur.fetchall()]
+
+
 def get_user_by_id(user_id: int) -> Optional[dict]:
     with get_cursor() as cur:
         cur.execute("SELECT * FROM users WHERE id = ?", (user_id,))
@@ -294,3 +316,64 @@ def update_user_password(email: str, password_hash: str) -> None:
         cur.execute("UPDATE users SET password_hash = ? WHERE email = ?", (password_hash, email))
 
 
+# ── Watch History ──
+
+def create_watch_history_entry(user_id: int, movie_id: int | None, title: str, poster_url: str = "", progress: int = 100) -> int:
+    with get_cursor() as cur:
+        cur.execute(
+            "INSERT INTO watch_history (user_id, movie_id, title, poster_url, progress) VALUES (?, ?, ?, ?, ?)",
+            (user_id, movie_id, title, poster_url, progress),
+        )
+        return cur.lastrowid
+
+
+def get_user_watch_history(user_id: int, limit: int = 50) -> list[dict]:
+    with get_cursor() as cur:
+        cur.execute(
+            "SELECT * FROM watch_history WHERE user_id = ? ORDER BY watched_at DESC LIMIT ?",
+            (user_id, limit),
+        )
+        return [dict(row) for row in cur.fetchall()]
+
+
+def delete_watch_history_entry(entry_id: int, user_id: int) -> None:
+    with get_cursor() as cur:
+        cur.execute("DELETE FROM watch_history WHERE id = ? AND user_id = ?", (entry_id, user_id))
+
+
+# ── Admin ──
+
+def update_user_role(user_id: int, role: str) -> None:
+    with get_cursor() as cur:
+        cur.execute("UPDATE users SET role = ? WHERE id = ?", (role, user_id))
+
+
+def delete_user(user_id: int) -> None:
+    with get_cursor() as cur:
+        cur.execute("DELETE FROM watch_history WHERE user_id = ?", (user_id,))
+        cur.execute("DELETE FROM reviews WHERE user_id = ?", (user_id,))
+        cur.execute("DELETE FROM vote_predictions WHERE user_id = ?", (user_id,))
+        cur.execute("DELETE FROM user_movie_statuses WHERE user_id = ?", (user_id,))
+        cur.execute("DELETE FROM password_resets WHERE email = (SELECT email FROM users WHERE id = ?)", (user_id,))
+        cur.execute("DELETE FROM users WHERE id = ?", (user_id,))
+
+
+def get_stats() -> dict:
+    with get_cursor() as cur:
+        cur.execute("SELECT COUNT(*) AS c FROM users")
+        users = cur.fetchone()["c"]
+        cur.execute("SELECT COUNT(*) AS c FROM movies")
+        movies = cur.fetchone()["c"]
+        cur.execute("SELECT COUNT(*) AS c FROM reviews")
+        reviews = cur.fetchone()["c"]
+        cur.execute("SELECT COUNT(*) AS c FROM fixtures")
+        fixtures = cur.fetchone()["c"]
+        cur.execute("SELECT COUNT(*) AS c FROM watch_history")
+        history = cur.fetchone()["c"]
+        return {
+            "total_users": users,
+            "total_movies": movies,
+            "total_reviews": reviews,
+            "total_fixtures": fixtures,
+            "total_watch_history": history,
+        }

@@ -1,10 +1,10 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Play, Plus, Film, Loader2 } from 'lucide-react';
-import { fetchMovies, fetchMoviesByGenre } from '../utils/streamingApi';
+import { Play, Plus, Film, Loader2, Tv, Sparkles } from 'lucide-react';
+import { fetchMovies, fetchMoviesByGenre, fetchAnime, fetchTvSeries } from '../utils/streamingApi';
 
 const GENRES = ['All Genres', 'Action', 'Animation', 'Comedy', 'Crime', 'Documentary', 'Drama', 'Fantasy', 'Horror', 'Mystery', 'Romance', 'Sci-Fi', 'Thriller'];
 
-export default function DiscoverView({ onCreateMovie, searchQueryFromHeader = '', onPlayMovie }) {
+export default function DiscoverView({ mode = 'discover', onCreateMovie, searchQueryFromHeader = '', onPlayMovie }) {
   const [searchKeyword, setSearchKeyword] = useState('');
   const [selectedGenre, setSelectedGenre] = useState('All Genres');
   const [movies, setMovies] = useState([]);
@@ -14,7 +14,11 @@ export default function DiscoverView({ onCreateMovie, searchQueryFromHeader = ''
     setLoading(true);
     try {
       let results;
-      if (!query && genre && genre !== 'All Genres') {
+      if (mode === 'anime') {
+        results = await fetchAnime({ query, genre });
+      } else if (mode === 'series') {
+        results = await fetchTvSeries({ query, genre });
+      } else if (!query && genre && genre !== 'All Genres') {
         results = await fetchMoviesByGenre(genre);
       } else {
         results = await fetchMovies({ query, genre });
@@ -23,7 +27,7 @@ export default function DiscoverView({ onCreateMovie, searchQueryFromHeader = ''
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [mode]);
 
   // Initial load — popular movies
   // eslint-disable-next-line react-hooks/set-state-in-effect
@@ -42,12 +46,17 @@ export default function DiscoverView({ onCreateMovie, searchQueryFromHeader = ''
     onCreateMovie(movie);
   };
 
+  const viewTitle = mode === 'anime' ? 'Anime Hub' : mode === 'series' ? 'TV Series & Shows' : 'Discover Films';
+  const viewSubtitle = mode === 'anime' ? 'Browse Japanese animation, movies, and series.' : mode === 'series' ? 'Browse popular TV series and episodes.' : 'Browse and add movies to your library.';
+
   return (
     <div className="space-y-8">
       <div>
-        <div className="text-xs font-semibold uppercase tracking-[0.35em] text-on-surface-variant mb-1">Movie Hub</div>
-        <h2 className="text-2xl font-black text-white">Discover Films</h2>
-        <p className="text-sm text-on-surface-variant mt-1">Browse and add movies to your library.</p>
+        <div className="text-xs font-semibold uppercase tracking-[0.35em] text-on-surface-variant mb-1">
+          {mode === 'anime' ? 'Anime Catalog' : mode === 'series' ? 'TV Catalog' : 'Movie Hub'}
+        </div>
+        <h2 className="text-2xl font-black text-white">{viewTitle}</h2>
+        <p className="text-sm text-on-surface-variant mt-1">{viewSubtitle}</p>
       </div>
 
       <div className="flex flex-col sm:flex-row gap-3">

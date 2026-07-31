@@ -29,7 +29,38 @@ function normalizeTmdbMovie(m) {
     genre: GENRE_MAP[genreId] || 'Drama',
     year: m.release_date ? parseInt(m.release_date.slice(0, 4)) : null,
     rating: m.vote_average ? parseFloat(m.vote_average.toFixed(1)) : null,
-    duration: null, // TMDb search doesn't return runtime — fetched separately if needed
+    duration: null,
+  };
+}
+
+function normalizeTmdbTvSeries(m) {
+  const genreId = m.genre_ids?.[0];
+  return {
+    id: `series-${m.id}`,
+    tmdbId: m.id,
+    title: m.name,
+    overview: m.overview || 'No overview available.',
+    posterUrl: m.poster_path ? `${TMDB_IMG}${m.poster_path}` : null,
+    genre: GENRE_MAP[genreId] || 'TV Series',
+    year: m.first_air_date ? parseInt(m.first_air_date.slice(0, 4)) : null,
+    rating: m.vote_average ? parseFloat(m.vote_average.toFixed(1)) : null,
+    isSeries: true,
+  };
+}
+
+function normalizeAniListAnime(a) {
+  const cleanOverview = (a.description || 'No summary available.').replace(/<[^>]*>?/gm, '');
+  return {
+    id: `anime-${a.id}`,
+    tmdbId: a.id,
+    title: a.title?.english || a.title?.romaji || 'Anime',
+    overview: cleanOverview,
+    posterUrl: a.coverImage?.extraLarge || a.coverImage?.large || null,
+    genre: a.genres?.[0] || 'Animation',
+    year: a.startDate?.year || null,
+    rating: a.averageScore ? parseFloat((a.averageScore / 10).toFixed(1)) : 8.5,
+    episodes: a.episodes || 24,
+    isAnime: true,
   };
 }
 
@@ -44,11 +75,99 @@ export function normalizeBackendMovie(m) {
     year: m.year || null,
     rating: m.rating ? parseFloat(Number(m.rating).toFixed(1)) : null,
     duration: m.duration || null,
-    // UI-only fields the backend doesn't persist; defaulted for the library views
     status: 'watchlist',
     isFavorite: false,
   };
 }
+
+// Fetch TV Series from TMDb TV API (e.g. Suits, Breaking Bad, House of the Dragon)
+export async function fetchTvSeries({ query = '', genre = '', page = 1 } = {}) {
+  if (TMDB_KEY && TMDB_KEY !== 'your_tmdb_api_key_here') {
+    try {
+      let url;
+      if (query.trim()) {
+        url = `${TMDB_BASE}/search/tv?api_key=${TMDB_KEY}&query=${encodeURIComponent(query)}&page=${page}&language=en-US`;
+      } else {
+        url = `${TMDB_BASE}/tv/popular?api_key=${TMDB_KEY}&page=${page}&language=en-US`;
+      }
+
+      const res = await fetch(url);
+      if (!res.ok) throw new Error(`TMDb TV error ${res.status}`);
+      const data = await res.json();
+      let series = (data.results || []).map(normalizeTmdbTvSeries);
+
+      if (genre && genre !== 'All Genres') {
+        series = series.filter(s => s.genre === genre);
+      }
+
+      return series.slice(0, 18);
+    } catch (err) {
+      console.error('TMDb TV Series fetch error:', err);
+    }
+  }
+  return fetchMovies({ query: query || 'Suits', genre });
+}
+
+// Fetch Anime from AniList GraphQL API
+export async function fetchAnime({ query = '', genre = '', page = 1 } = {}) {
+  const graphqlQuery = `
+    query ($search: String, $page: Int, $perPage: Int) {
+      Page (page: $page, perPage: $perPage) {
+        media (search: $search, type: ANIME, sort: POPULARITY_DESC) {
+          id
+          title {
+            romaji
+            english
+          }
+          coverImage {
+            extraLarge
+            large
+          }
+          startDate {
+            year
+          }
+          episodes
+          genres
+          averageScore
+          description
+        }
+      }
+    }
+  `;
+
+  try {
+    const res = await fetch('https://graphql.anilist.co', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+      },
+      body: JSON.stringify({
+        query: graphqlQuery,
+        variables: {
+          search: query.trim() || undefined,
+          page,
+          perPage: 18,
+        },
+      }),
+    });
+
+    if (!res.ok) throw new Error(`AniList error ${res.status}`);
+    const data = await res.json();
+    const list = data?.data?.Page?.media || [];
+    let results = list.map(normalizeAniListAnime);
+
+    if (genre && genre !== 'All Genres') {
+      results = results.filter(a => a.genre.toLowerCase() === genre.toLowerCase());
+    }
+
+    return results;
+  } catch (err) {
+    console.error('AniList fetch error:', err);
+    return fetchMovies({ query: query || 'Anime', genre });
+  }
+}
+
 
 // Fetch trending or search movies from TMDb or backend fallback
 export async function fetchMovies({ query = '', genre = '', page = 1 } = {}) {

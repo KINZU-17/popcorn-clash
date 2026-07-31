@@ -1,4 +1,4 @@
-import { Compass, Library, BarChart2, Tv, MessageSquare, LogOut, X, Home, Trophy, BarChart, User, PlusSquare, Bell } from 'lucide-react';
+import { Compass, Library, BarChart2, Tv, MessageSquare, LogOut, X, Home, Trophy, BarChart, User, PlusSquare, Bell, Shield, Sparkles } from 'lucide-react';
 
 export default function Sidebar({
   activeTab,
@@ -17,6 +17,8 @@ export default function Sidebar({
 }) {
   const movieTabs = [
     { id: 'discover', label: 'Discover', icon: Compass },
+    { id: 'anime', label: 'Anime Hub', icon: Sparkles },
+    { id: 'series', label: 'TV Series', icon: Tv },
     { id: 'library', label: 'My Library', icon: Library },
     { id: 'stats', label: 'Film Stats', icon: BarChart2 },
     { id: 'companion', label: 'Live Session', icon: MessageSquare },
@@ -27,6 +29,7 @@ export default function Sidebar({
     { id: 'leaderboard', label: 'Leaderboard', icon: Trophy },
     { id: 'analytics', label: 'Analytics', icon: BarChart },
     { id: 'profile', label: 'Profile', icon: User },
+    ...(userRole === 'admin' ? [{ id: 'admin', label: 'Admin Panel', icon: Shield }] : []),
   ];
 
   const handleMovieTab = (id) => { setActiveTab(id); onClose(); };
@@ -156,6 +159,17 @@ export default function Sidebar({
           >
             <Tv className="w-3.5 h-3.5" />
             <span>Start a PopcornJam</span>
+          </button>
+
+          <button
+            onClick={() => {
+              if (window.openTmdbModal) window.openTmdbModal();
+              onClose();
+            }}
+            className="w-full py-2.5 px-4 bg-white/10 hover:bg-white/20 text-white font-mono text-[10px] uppercase tracking-wider transition-colors flex items-center justify-center gap-2 cursor-pointer rounded-lg border border-white/10"
+          >
+            <Sparkles className="w-3.5 h-3.5 text-accent-gold" />
+            <span>Enter TMDB ID</span>
           </button>
 
           <button

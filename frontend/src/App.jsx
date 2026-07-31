@@ -22,6 +22,7 @@ export default function App() {
             <Route path="/leaderboard" element={<CineMatch />} />
             <Route path="/analytics" element={<CineMatch />} />
             <Route path="/profile" element={<CineMatch />} />
+            <Route path="/admin" element={<CineMatch />} />
             <Route path="/match/:id" element={<CineMatch />} />
             <Route path="/fixtures/create" element={<CineMatch />} />
           </Route>
