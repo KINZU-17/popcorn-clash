@@ -1,421 +1,382 @@
 from datetime import datetime
 from typing import Optional
-from .connection import get_cursor
-import random
+from sqlalchemy import func, or_
+from app.extensions import db
+from app.models import ( # This should be app.models, not app.models.models
+    User, Team, Fixture, VotePrediction, Movie, Review,
+    UserMovieStatus, PasswordReset, WatchHistory
+)
 
 
 def get_user_by_email(email: str) -> Optional[dict]:
-    with get_cursor() as cur:
-        cur.execute("SELECT * FROM users WHERE email = ?", (email,))
-        row = cur.fetchone()
-        return dict(row) if row else None
+    user = User.query.filter_by(email=email).first()
+    return user.__dict__ if user else None
 
 
 def get_user_by_username(username: str) -> Optional[dict]:
-    with get_cursor() as cur:
-        cur.execute("SELECT * FROM users WHERE username = ?", (username,))
-        row = cur.fetchone()
-        return dict(row) if row else None
+    user = User.query.filter_by(username=username).first()
+    return user.__dict__ if user else None
 
 
 def create_user(username: str, email: str, password_hash: str, favorite_club: str = "") -> int:
-    with get_cursor() as cur:
-        cur.execute(
-            "INSERT INTO users (username, email, password_hash, favorite_club) VALUES (?, ?, ?, ?)",
-            (username, email, password_hash, favorite_club),
-        )
-        return cur.lastrowid
+    new_user = User(username=username, email=email, password_hash=password_hash, favorite_club=favorite_club)
+    db.session.add(new_user)
+    db.session.commit()
+    return new_user.id
 
 
 def search_users(query: str = "", current_user_id: int | None = None) -> list[dict]:
     from app.utils.auth import get_online_user_ids
-    with get_cursor() as cur:
-        limit_clause = "LIMIT 50" if query else ""  # No limit for admin fetching all users
-        search_pattern = f"%{query}%" if query else "%"
-        if current_user_id:
-            cur.execute(f"""
-                SELECT id, username, email, favorite_club, current_level, total_xp, role, is_banned
-                FROM users
-                WHERE id != ? AND (username LIKE ? OR email LIKE ?)
-                ORDER BY username ASC
-                {limit_clause}
-            """, (current_user_id, search_pattern, search_pattern))
-        else:
-            cur.execute(f"""
-                SELECT id, username, email, favorite_club, current_level, total_xp, role, is_banned
-                FROM users
-                WHERE username LIKE ? OR email LIKE ?
-                ORDER BY username ASC
-                {limit_clause}
-            """, (search_pattern, search_pattern))
-        users = [dict(row) for row in cur.fetchall()]
-        online_user_ids = get_online_user_ids()
-        for user in users:
-            user['is_online'] = user['id'] in online_user_ids
-        return users
+    
+    base_query = User.query
+    if query:
+        search_pattern = f"%{query}%"
+        base_query = base_query.filter(or_(User.username.like(search_pattern), User.email.like(search_pattern)))
+        base_query = base_query.limit(50)
+
+    if current_user_id:
+        base_query = base_query.filter(User.id != current_user_id)
+
+    users_obj = base_query.order_by(User.username.asc()).all()
+    
+    users = []
+    online_user_ids = get_online_user_ids()
+    for u in users_obj:
+        user_dict = {c.name: getattr(u, c.name) for c in u.__table__.columns}
+        user_dict['is_online'] = u.id in online_user_ids
+        users.append(user_dict)
+
+    return users
 
 
 def get_user_by_id(user_id: int) -> Optional[dict]:
-    with get_cursor() as cur:
-        cur.execute("SELECT * FROM users WHERE id = ?", (user_id,))
-        row = cur.fetchone()
-        return dict(row) if row else None
+    user = User.query.get(user_id)
+    return user.__dict__ if user else None
 
 
 def update_user_profile(user_id: int, **kwargs) -> None:
     if not kwargs:
         return
-    set_clause = ", ".join(f"{key} = ?" for key in kwargs.keys())
-    values = list(kwargs.values()) + [user_id]
-    with get_cursor() as cur:
-        cur.execute(f"UPDATE users SET {set_clause} WHERE id = ?", values)
+    User.query.filter_by(id=user_id).update(kwargs)
+    db.session.commit()
 
 
 def get_team_by_id(team_id: int) -> Optional[dict]:
-    with get_cursor() as cur:
-        cur.execute("SELECT * FROM teams WHERE id = ?", (team_id,))
-        row = cur.fetchone()
-        return dict(row) if row else None
+    team = Team.query.get(team_id)
+    return team.__dict__ if team else None
 
 
 def create_team(name: str, league: str, stadium: str = "", rating_score: float = 0.0) -> int:
-    with get_cursor() as cur:
-        cur.execute(
-            "INSERT INTO teams (name, league, stadium, rating_score) VALUES (?, ?, ?, ?)",
-            (name, league, stadium, rating_score),
-        )
-        return cur.lastrowid
+    new_team = Team(name=name, league=league, stadium=stadium, rating_score=rating_score)
+    db.session.add(new_team)
+    db.session.commit()
+    return new_team.id
 
 
 def get_all_teams() -> list[dict]:
-    with get_cursor() as cur:
-        cur.execute("SELECT * FROM teams ORDER BY rating_score DESC")
-        return [dict(row) for row in cur.fetchall()]
+    teams = Team.query.order_by(Team.rating_score.desc()).all()
+    return [t.__dict__ for t in teams]
 
 
 def get_fixture(fixture_id: int) -> Optional[dict]:
-    with get_cursor() as cur:
-        cur.execute("""
-            SELECT f.*, h.league,
-                   h.name AS home_name, h.code AS home_code,
-                   a.name AS away_name, a.code AS away_code, a.league AS away_league
-            FROM fixtures f
-            JOIN teams h ON f.team_home_id = h.id
-            JOIN teams a ON f.team_away_id = a.id
-            WHERE f.id = ?
-        """, (fixture_id,))
-        row = cur.fetchone()
-        return dict(row) if row else None
+    fixture = Fixture.query.options(
+        db.joinedload(Fixture.home_team),
+        db.joinedload(Fixture.away_team)
+    ).get(fixture_id)
+    if not fixture:
+        return None
+    
+    fixture_dict = fixture.__dict__
+    fixture_dict['home_name'] = fixture.home_team.name
+    fixture_dict['home_code'] = fixture.home_team.code
+    fixture_dict['league'] = fixture.home_team.league
+    fixture_dict['away_name'] = fixture.away_team.name
+    fixture_dict['away_code'] = fixture.away_team.code
+    fixture_dict['away_league'] = fixture.away_team.league
+    return fixture_dict
 
 
 def get_all_fixtures() -> list[dict]:
-    with get_cursor() as cur:
-        cur.execute("""
-            SELECT f.*, h.league,
-                   h.name AS home_name, h.code AS home_code, 
-                   a.name AS away_name, a.code AS away_code
-            FROM fixtures f
-            JOIN teams h ON f.team_home_id = h.id
-            JOIN teams a ON f.team_away_id = a.id
-            ORDER BY f.match_date ASC
-        """)
-        return [dict(row) for row in cur.fetchall()] # Kept for non-paginated calls
+    fixtures = Fixture.query.options(
+        db.joinedload(Fixture.home_team),
+        db.joinedload(Fixture.away_team)
+    ).order_by(Fixture.match_date.asc()).all()
+
+    results = []
+    for f in fixtures:
+        f_dict = {c.name: getattr(f, c.name) for c in f.__table__.columns}
+        f_dict['home_name'] = f.home_team.name
+        f_dict['home_code'] = f.home_team.code
+        f_dict['league'] = f.home_team.league
+        f_dict['away_name'] = f.away_team.name
+        f_dict['away_code'] = f.away_team.code
+        results.append(f_dict)
+    return results
 
 
 def create_fixture(team_home_id: int, team_away_id: int, match_date: str, status: str = "SCHEDULED") -> int:
-    with get_cursor() as cur:
-        cur.execute(
-            "INSERT INTO fixtures (team_home_id, team_away_id, match_date, status) VALUES (?, ?, ?, ?)",
-            (team_home_id, team_away_id, match_date, status),
-        )
-        return cur.lastrowid
+    new_fixture = Fixture(
+        team_home_id=team_home_id,
+        team_away_id=team_away_id,
+        match_date=datetime.fromisoformat(match_date),
+        status=status
+    )
+    db.session.add(new_fixture)
+    db.session.commit()
+    return new_fixture.id
 
 
 def update_fixture_status(fixture_id: int, status: str) -> None:
-    with get_cursor() as cur:
-        cur.execute("UPDATE fixtures SET status = ? WHERE id = ?", (status, fixture_id))
+    fixture = Fixture.query.get(fixture_id)
+    if fixture:
+        fixture.status = status
+        db.session.commit()
 
 
 def create_prediction(user_id: int, fixture_id: int, predicted_winner_id: int | None, confidence: int) -> int:
-    with get_cursor() as cur:
-        cur.execute(
-            """INSERT INTO vote_predictions (user_id, fixture_id, predicted_winner_id, confidence_score)
-               VALUES (?, ?, ?, ?)
-               ON CONFLICT(user_id, fixture_id) DO UPDATE SET
-               predicted_winner_id = excluded.predicted_winner_id,
-               confidence_score = excluded.confidence_score""",
-            (user_id, fixture_id, predicted_winner_id, confidence),
+    prediction = VotePrediction.query.filter_by(user_id=user_id, fixture_id=fixture_id).first()
+    if prediction:
+        prediction.predicted_winner_id = predicted_winner_id
+        prediction.confidence_score = confidence
+    else:
+        prediction = VotePrediction(
+            user_id=user_id,
+            fixture_id=fixture_id,
+            predicted_winner_id=predicted_winner_id,
+            confidence_score=confidence
         )
-        return cur.lastrowid
+        db.session.add(prediction)
+    db.session.commit()
+    return prediction.id
 
 
 def get_predictions_for_fixture(fixture_id: int) -> list[dict]:
-    with get_cursor() as cur:
-        cur.execute("""
-            SELECT vp.*, u.username
-            FROM vote_predictions vp
-            JOIN users u ON vp.user_id = u.id
-            WHERE vp.fixture_id = ?
-            ORDER BY vp.created_at DESC
-        """, (fixture_id,))
-        return [dict(row) for row in cur.fetchall()]
+    predictions = VotePrediction.query.join(User).filter(VotePrediction.fixture_id == fixture_id).order_by(VotePrediction.created_at.desc()).all()
+    results = []
+    for p in predictions:
+        p_dict = {c.name: getattr(p, c.name) for c in p.__table__.columns}
+        p_dict['username'] = p.user.username
+        results.append(p_dict)
+    return results
 
 
 def get_user_predictions(user_id: int) -> list[dict]:
-    with get_cursor() as cur:
-        cur.execute("""
-            SELECT vp.*, f.match_date, h.name AS home_name, a.name AS away_name
-            FROM vote_predictions vp
-            JOIN fixtures f ON vp.fixture_id = f.id
-            JOIN teams h ON f.team_home_id = h.id
-            JOIN teams a ON f.team_away_id = a.id
-            WHERE vp.user_id = ?
-            ORDER BY vp.created_at DESC
-        """, (user_id,))
-        return [dict(row) for row in cur.fetchall()]
+    predictions = VotePrediction.query.filter_by(user_id=user_id).join(Fixture).order_by(VotePrediction.created_at.desc()).all()
+    results = []
+    for p in predictions:
+        p_dict = {c.name: getattr(p, c.name) for c in p.__table__.columns}
+        p_dict['match_date'] = p.fixture.match_date
+        p_dict['home_name'] = p.fixture.home_team.name
+        p_dict['away_name'] = p.fixture.away_team.name
+        results.append(p_dict)
+    return results
 
 
 def get_leaderboard(limit: int = 50) -> list[dict]:
-    with get_cursor() as cur:
-        cur.execute("""
-            SELECT u.username, u.total_xp, u.prediction_streak, u.favorite_club,
-                   COUNT(vp.id) AS total_predictions,
-                   SUM(CASE WHEN vp.predicted_winner_id = f.team_home_id AND f.status = 'FINISHED' THEN 1 ELSE 0 END) AS correct_predictions
-            FROM users u
-            LEFT JOIN vote_predictions vp ON u.id = vp.user_id
-            LEFT JOIN fixtures f ON vp.fixture_id = f.id
-            GROUP BY u.id
-            ORDER BY u.total_xp DESC
-            LIMIT ?
-        """, (limit,))
-        return [dict(row) for row in cur.fetchall()]
+    # This is a complex aggregation, might be easier to keep as raw SQL or use more advanced SQLAlchemy
+    # For now, converting to ORM equivalent
+    results = db.session.query(
+        User.username,
+        User.total_xp,
+        User.prediction_streak,
+        User.favorite_club,
+        func.count(VotePrediction.id).label('total_predictions'),
+        func.sum(case((and_(VotePrediction.predicted_winner_id == Fixture.team_home_id, Fixture.status == 'FINISHED'), 1), else_=0)).label('correct_predictions')
+    ).outerjoin(VotePrediction, User.id == VotePrediction.user_id)\
+     .outerjoin(Fixture, VotePrediction.fixture_id == Fixture.id)\
+     .group_by(User.id)\
+     .order_by(User.total_xp.desc())\
+     .limit(limit).all()
+    return [dict(row) for row in results]
 
 
 def create_movie(tmdb_id, title, overview, poster_url, genre, year, rating, duration) -> int:
-    with get_cursor() as cur:
-        cur.execute(
-            """INSERT INTO movies (tmdb_id, title, overview, poster_url, genre, year, rating, duration)
-               VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-               ON CONFLICT(tmdb_id) DO UPDATE SET
-               title = excluded.title,
-               overview = excluded.overview,
-               poster_url = excluded.poster_url,
-               genre = excluded.genre,
-               year = excluded.year,
-               rating = excluded.rating,
-               duration = excluded.duration""",
-            (tmdb_id, title, overview, poster_url, genre, year, rating, duration),
-        )
-        return cur.lastrowid
+    movie = Movie.query.filter_by(tmdb_id=tmdb_id).first()
+    if movie:
+        movie.title = title
+        movie.overview = overview
+        movie.poster_url = poster_url
+        movie.genre = genre
+        movie.year = year
+        movie.rating = rating
+        movie.duration = duration
+    else:
+        movie = Movie(tmdb_id=tmdb_id, title=title, overview=overview, poster_url=poster_url, genre=genre, year=year, rating=rating, duration=duration)
+        db.session.add(movie)
+    db.session.commit()
+    return movie.id
 
 
 def get_all_movies(limit: int = 50, page: int = 1, per_page: int = 10, paginated: bool = False) -> list[dict] | dict:
-    with get_cursor() as cur:
-        if paginated:
-            offset = (page - 1) * per_page
-            cur.execute("SELECT COUNT(*) as count FROM movies")
-            total = cur.fetchone()['count']
-            cur.execute("SELECT * FROM movies ORDER BY year DESC, rating DESC LIMIT ? OFFSET ?", (per_page, offset))
-            movies = [dict(row) for row in cur.fetchall()]
-            return {
-                "movies": movies,
-                "pagination": {"total": total, "page": page, "per_page": per_page, "pages": (total + per_page - 1) // per_page}
+    query = Movie.query.order_by(Movie.year.desc(), Movie.rating.desc())
+    if paginated:
+        pagination = query.paginate(page=page, per_page=per_page, error_out=False)
+        return {
+            "movies": [m.__dict__ for m in pagination.items],
+            "pagination": {
+                "total": pagination.total,
+                "page": pagination.page,
+                "per_page": pagination.per_page,
+                "pages": pagination.pages
             }
+        }
 
-        if limit > 0:
-            cur.execute("SELECT * FROM movies ORDER BY year DESC, rating DESC LIMIT ?", (limit,))
-        else: # limit 0 means all
-            cur.execute("SELECT * FROM movies ORDER BY year DESC, rating DESC")
-        
-        movies = [dict(row) for row in cur.fetchall()]
-        return {"movies": movies}
+    if limit > 0:
+        query = query.limit(limit)
+    
+    movies = [m.__dict__ for m in query.all()]
+    return {"movies": movies}
 
 
 def get_movie_by_id(movie_id: int) -> dict | None:
-    with get_cursor() as cur:
-        cur.execute("SELECT * FROM movies WHERE id = ?", (movie_id,))
-        row = cur.fetchone()
-        return dict(row) if row else None
+    movie = Movie.query.get(movie_id)
+    return movie.__dict__ if movie else None
 
 
 def create_review(user_id: int, movie_title: str, rating: int, text: str, poster_url: str = "") -> int:
-    with get_cursor() as cur:
-        cur.execute(
-            "INSERT INTO reviews (user_id, movie_title, rating, text, poster_url) VALUES (?, ?, ?, ?, ?)",
-            (user_id, movie_title, rating, text, poster_url),
-        )
-        return cur.lastrowid
+    new_review = Review(user_id=user_id, movie_title=movie_title, rating=rating, text=text, poster_url=poster_url)
+    db.session.add(new_review)
+    db.session.commit()
+    return new_review.id
 
 
 def get_all_reviews(page: int = 1, per_page: int = 10, paginated: bool = False) -> list[dict] | dict:
-    with get_cursor() as cur:
-        if paginated:
-            offset = (page - 1) * per_page
-            cur.execute("SELECT COUNT(*) as count FROM reviews")
-            total = cur.fetchone()['count']
-            cur.execute("SELECT * FROM reviews ORDER BY created_at DESC LIMIT ? OFFSET ?", (per_page, offset))
-            reviews = [dict(row) for row in cur.fetchall()]
-            return {
-                "reviews": reviews,
-                "pagination": {"total": total, "page": page, "per_page": per_page, "pages": (total + per_page - 1) // per_page}
-            }
-
-        cur.execute("SELECT * FROM reviews ORDER BY created_at DESC")
-        reviews = [dict(row) for row in cur.fetchall()]
+    query = Review.query.order_by(Review.created_at.desc())
+    if paginated:
+        pagination = query.paginate(page=page, per_page=per_page, error_out=False)
         return {
-            "reviews": reviews
+            "reviews": [r.__dict__ for r in pagination.items],
+            "pagination": {
+                "total": pagination.total,
+                "page": pagination.page,
+                "per_page": pagination.per_page,
+                "pages": pagination.pages
+            }
         }
+    reviews = [r.__dict__ for r in query.all()]
+    return {"reviews": reviews}
 
 
 def update_review(review_id: int, **kwargs) -> None:
     if not kwargs:
         return
-    set_clause = ", ".join(f"{key} = ?" for key in kwargs.keys())
-    values = list(kwargs.values()) + [review_id]
-    with get_cursor() as cur:
-        cur.execute(f"UPDATE reviews SET {set_clause} WHERE id = ?", values)
+    Review.query.filter_by(id=review_id).update(kwargs)
+    db.session.commit()
 
 
 def delete_review(review_id: int) -> None:
-    with get_cursor() as cur:
-        cur.execute("DELETE FROM reviews WHERE id = ?", (review_id,))
+    review = Review.query.get(review_id)
+    if review:
+        db.session.delete(review)
+        db.session.commit()
 
 
 def delete_movie(movie_id: int) -> None:
-    with get_cursor() as cur:
-        cur.execute("DELETE FROM user_movie_statuses WHERE movie_id = ?", (movie_id,))
-        cur.execute("DELETE FROM movies WHERE id = ?", (movie_id,))
+    movie = Movie.query.get(movie_id)
+    if movie:
+        db.session.delete(movie)
+        db.session.commit()
 
 
 def get_user_movie_statuses(user_id: int) -> dict:
-    with get_cursor() as cur:
-        cur.execute("SELECT movie_id, status, is_favorite FROM user_movie_statuses WHERE user_id = ?", (user_id,))
-        rows = cur.fetchall()
-        return {
-            row["movie_id"]: {
-                "status": row["status"],
-                "is_favorite": bool(row["is_favorite"])
-            } for row in rows
-        }
+    statuses = UserMovieStatus.query.filter_by(user_id=user_id).all()
+    return {
+        s.movie_id: {"status": s.status, "is_favorite": s.is_favorite}
+        for s in statuses
+    }
 
 
 def update_user_movie_status(user_id: int, movie_id: int, status: str = None, is_favorite: bool = None) -> None:
-    with get_cursor() as cur:
-        # Check if already exists
-        cur.execute("SELECT status, is_favorite FROM user_movie_statuses WHERE user_id = ? AND movie_id = ?", (user_id, movie_id))
-        row = cur.fetchone()
-        
-        if row:
-            # Update existing
-            new_status = status if status is not None else row["status"]
-            new_fav = int(is_favorite) if is_favorite is not None else row["is_favorite"]
-            cur.execute(
-                "UPDATE user_movie_statuses SET status = ?, is_favorite = ? WHERE user_id = ? AND movie_id = ?",
-                (new_status, new_fav, user_id, movie_id)
-            )
-        else:
-            # Insert new
-            new_status = status if status is not None else 'watchlist'
-            new_fav = int(is_favorite) if is_favorite is not None else 0
-            cur.execute(
-                "INSERT INTO user_movie_statuses (user_id, movie_id, status, is_favorite) VALUES (?, ?, ?, ?)",
-                (user_id, movie_id, new_status, new_fav)
-            )
+    ums = UserMovieStatus.query.filter_by(user_id=user_id, movie_id=movie_id).first()
+    if ums:
+        if status is not None:
+            ums.status = status
+        if is_favorite is not None:
+            ums.is_favorite = is_favorite
+    else:
+        ums = UserMovieStatus(user_id=user_id, movie_id=movie_id)
+        if status is not None:
+            ums.status = status
+        if is_favorite is not None:
+            ums.is_favorite = is_favorite
+        db.session.add(ums)
+    db.session.commit()
 
 
 def create_password_reset(email: str, code: str, expires_at: str) -> None:
-    with get_cursor() as cur:
-        # Invalidate prior unused codes for this email
-        cur.execute("UPDATE password_resets SET used = 1 WHERE email = ?", (email,))
-        cur.execute(
-            "INSERT INTO password_resets (email, code, expires_at) VALUES (?, ?, ?)",
-            (email, code, expires_at),
-        )
+    PasswordReset.query.filter_by(email=email, used=False).update({"used": True})
+    new_reset = PasswordReset(email=email, code=code, expires_at=datetime.fromisoformat(expires_at))
+    db.session.add(new_reset)
+    db.session.commit()
 
 
 def verify_and_use_reset_code(email: str, code: str) -> bool:
-    with get_cursor() as cur:
-        cur.execute(
-            "SELECT id, expires_at, used FROM password_resets WHERE email = ? AND code = ? AND used = 0 ORDER BY id DESC LIMIT 1",
-            (email, code),
-        )
-        row = cur.fetchone()
-        if not row:
-            return False
-
-        # Mark as used
-        cur.execute("UPDATE password_resets SET used = 1 WHERE id = ?", (row["id"],))
-        return True
+    reset_req = PasswordReset.query.filter_by(email=email, code=code, used=False).order_by(PasswordReset.id.desc()).first()
+    if not reset_req or reset_req.expires_at < datetime.utcnow():
+        return False
+    
+    reset_req.used = True
+    db.session.commit()
+    return True
 
 
 def update_user_password(email: str, password_hash: str) -> None:
-    with get_cursor() as cur:
-        cur.execute("UPDATE users SET password_hash = ? WHERE email = ?", (password_hash, email))
+    user = User.query.filter_by(email=email).first()
+    if user:
+        user.password_hash = password_hash
+        db.session.commit()
 
 
 # ── Watch History ──
 
 def create_watch_history_entry(user_id: int, movie_id: int | None, title: str, poster_url: str = "", progress: int = 100) -> int:
-    with get_cursor() as cur:
-        cur.execute(
-            "INSERT INTO watch_history (user_id, movie_id, title, poster_url, progress) VALUES (?, ?, ?, ?, ?)",
-            (user_id, movie_id, title, poster_url, progress),
-        )
-        return cur.lastrowid
+    entry = WatchHistory(user_id=user_id, movie_id=movie_id, title=title, poster_url=poster_url, progress=progress)
+    db.session.add(entry)
+    db.session.commit()
+    return entry.id
 
 
 def get_user_watch_history(user_id: int, limit: int = 50) -> list[dict]:
-    with get_cursor() as cur:
-        cur.execute(
-            "SELECT * FROM watch_history WHERE user_id = ? ORDER BY watched_at DESC LIMIT ?",
-            (user_id, limit),
-        )
-        return [dict(row) for row in cur.fetchall()]
+    history = WatchHistory.query.filter_by(user_id=user_id).order_by(WatchHistory.watched_at.desc()).limit(limit).all()
+    return [h.__dict__ for h in history]
 
 
 def delete_watch_history_entry(entry_id: int, user_id: int) -> None:
-    with get_cursor() as cur:
-        cur.execute("DELETE FROM watch_history WHERE id = ? AND user_id = ?", (entry_id, user_id))
+    entry = WatchHistory.query.filter_by(id=entry_id, user_id=user_id).first()
+    if entry:
+        db.session.delete(entry)
+        db.session.commit()
 
 
 # ── Admin ──
 
 def update_user_role(user_id: int, role: str) -> None:
-    with get_cursor() as cur:
-        cur.execute("UPDATE users SET role = ? WHERE id = ?", (role, user_id))
+    user = User.query.get(user_id)
+    if user:
+        user.role = role
+        db.session.commit()
 
 
 def update_user_ban_status(user_id: int, is_banned: bool) -> None:
-    with get_cursor() as cur:
-        cur.execute("UPDATE users SET is_banned = ? WHERE id = ?", (int(is_banned), user_id))
+    user = User.query.get(user_id)
+    if user:
+        user.is_banned = is_banned
+        db.session.commit()
 
 
 def delete_user(user_id: int) -> None:
-    with get_cursor() as cur:
-        cur.execute("DELETE FROM watch_history WHERE user_id = ?", (user_id,))
-        cur.execute("DELETE FROM reviews WHERE user_id = ?", (user_id,))
-        cur.execute("DELETE FROM vote_predictions WHERE user_id = ?", (user_id,))
-        cur.execute("DELETE FROM user_movie_statuses WHERE user_id = ?", (user_id,))
-        cur.execute("DELETE FROM password_resets WHERE email = (SELECT email FROM users WHERE id = ?)", (user_id,))
-        cur.execute("DELETE FROM users WHERE id = ?", (user_id,))
+    user = User.query.get(user_id)
+    if user:
+        PasswordReset.query.filter_by(email=user.email).delete()
+        db.session.delete(user)
+        db.session.commit()
 
 
 def get_stats() -> dict:
-    with get_cursor() as cur:
-        cur.execute("SELECT COUNT(*) AS c FROM users")
-        users = cur.fetchone()["c"]
-        cur.execute("SELECT COUNT(*) AS c FROM movies")
-        movies = cur.fetchone()["c"]
-        cur.execute("SELECT COUNT(*) AS c FROM reviews")
-        reviews = cur.fetchone()["c"]
-        cur.execute("SELECT COUNT(*) AS c FROM fixtures")
-        fixtures = cur.fetchone()["c"]
-        cur.execute("SELECT COUNT(*) AS c FROM watch_history")
-        history = cur.fetchone()["c"]
-        return {
-            "total_users": users,
-            "total_movies": movies,
-            "total_reviews": reviews,
-            "total_fixtures": fixtures,
-            "total_watch_history": history,
-        }
+    return {
+        "total_users": db.session.query(func.count(User.id)).scalar(),
+        "total_movies": db.session.query(func.count(Movie.id)).scalar(),
+        "total_reviews": db.session.query(func.count(Review.id)).scalar(),
+        "total_fixtures": db.session.query(func.count(Fixture.id)).scalar(),
+        "total_watch_history": db.session.query(func.count(WatchHistory.id)).scalar(),
+    }
