@@ -74,7 +74,12 @@ export const api = {
   users: {
     profile: () => request('/api/users/profile'),
     updateProfile: (data) => request('/api/users/profile', { method: 'PATCH', body: JSON.stringify(data) }),
-    search: (query = '') => request(`/api/users/search?q=${encodeURIComponent(query)}`),
+    list: () => request('/api/users'),
+    search: (query = '', excludeSelf = false) => {
+      const params = new URLSearchParams({ q: query });
+      if (excludeSelf) params.set('exclude_self', 'true');
+      return request(`/api/users/search?${params.toString()}`);
+    },
   },
   movies: {
     list: (params = {}) => {
@@ -103,10 +108,18 @@ export const api = {
     delete: (id) => request(`/api/history/${id}`, { method: 'DELETE' }),
   },
   admin: {
-    listUsers: () => request('/api/users'),
-    updateUserRole: (id, role) => request(`/api/users/${id}/role`, { method: 'PATCH', body: JSON.stringify({ role }) }),
-    deleteUser: (id) => request(`/api/users/${id}`, { method: 'DELETE' }),
-    getStats: () => request('/api/users/stats'),
+    getStats: () => request('/api/admin/stats'),
+    listUsers: (page = 1, per_page = 10) => {
+      return request(`/api/users?page=${page}&per_page=${per_page}`);
+    },
+    updateUserRole: (id) => request(`/api/admin/users/${id}/role`, { method: 'PATCH' }),
+    deleteUser: (id) => request(`/api/admin/users/${id}`, { method: 'DELETE' }),
+    banUser: (id, is_banned) => request(`/api/admin/users/${id}/ban`, { method: 'PATCH', body: JSON.stringify({ is_banned }) }),
+    deleteReview: (id) => request(`/api/admin/reviews/${id}`, { method: 'DELETE' }),
+    deleteMovie: (id) => request(`/api/admin/movies/${id}`, { method: 'DELETE' }),
+    listMovies: (page = 1, per_page = 10) => request(`/api/admin/movies?page=${page}&per_page=${per_page}`),
+    listReviews: (page = 1, per_page = 10) => request(`/api/admin/reviews?page=${page}&per_page=${per_page}`),
+    listFixtures: (page = 1, per_page = 10) => request(`/api/admin/fixtures?page=${page}&per_page=${per_page}`),
+    getLogs: () => request('/api/admin/logs'),
   },
 };
-

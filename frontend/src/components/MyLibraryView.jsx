@@ -28,7 +28,19 @@ export default function MyLibraryView({
   const genres = ['All Genres', 'Sci-Fi', 'Thriller', 'Action', 'Animation', 'Drama', 'Horror', 'Romance', 'History', 'Comedy', 'Documentary'];
   const subTabs = ['all', 'watchlist', 'watching', 'watched', 'favorites'];
 
-  const filteredMovies = movies.filter(movie => {
+  const allLibraryMovies = [
+    ...movies,
+    ...history
+      .filter(h => !movies.some(m => m.title === h.title)) // Avoid duplicates
+      .map(h => ({
+        ...h,
+        status: 'watched', // Ensure history items are marked as watched
+        isFavorite: false,
+      })),
+  ];
+
+
+  const filteredMovies = allLibraryMovies.filter(movie => {
     let match = true;
     if (searchQuery) match = match && (movie.title.toLowerCase().includes(searchQuery.toLowerCase()) || (movie.genre && movie.genre.toLowerCase().includes(searchQuery.toLowerCase())));
     if (selectedGenre !== 'All Genres') match = match && movie.genre === selectedGenre;

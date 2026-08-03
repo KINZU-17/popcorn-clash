@@ -38,10 +38,11 @@ const ANIME_SERVERS_DUB = [
 ];
 
 export default function MoviePlayer({ movie, onClose, onProgressUpdate }) {
-  const isAnime = String(movie?.id || '').startsWith('anime-') || Boolean(movie?.isAnime);
+  const isAnime = movie?.type === 'anime' || String(movie?.id || '').startsWith('anime-') || Boolean(movie?.isAnime);
+  const isSeries = movie?.type === 'series' || String(movie?.id || '').startsWith('series-') || Boolean(movie?.isSeries);
   const [isDub, setIsDub] = useState(false);
 
-  const activeServers = isAnime ? (isDub ? ANIME_SERVERS_DUB : ANIME_SERVERS_SUB) : MOVIE_SERVERS;
+  const activeServers = isAnime || isSeries ? (isDub ? ANIME_SERVERS_DUB : ANIME_SERVERS_SUB) : MOVIE_SERVERS;
 
   const [selectedServer, setSelectedServer] = useState(activeServers[0]);
   const [activeEpisode, setActiveEpisode] = useState(1);
@@ -49,12 +50,12 @@ export default function MoviePlayer({ movie, onClose, onProgressUpdate }) {
   const playerContainerRef = useRef(null);
 
   const cleanTmdbId = String(movie?.tmdbId || movie?.id || '').replace(/\D/g, '') || '105825'; 
-  const totalEpisodes = isAnime ? parseInt(movie?.episodes || 24, 10) : 1;
+  const totalEpisodes = isAnime || isSeries ? parseInt(movie?.episodes || 24, 10) : 1;
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setIsLoading(true);
-  }, [movie?.id, isDub, isAnime]);
+  }, [movie?.id, isDub, isAnime, isSeries]);
 
   const handleServerChange = (server) => {
     setSelectedServer(server);
@@ -78,7 +79,7 @@ export default function MoviePlayer({ movie, onClose, onProgressUpdate }) {
   };
 
   const currentStreamUrl = typeof selectedServer?.getUrl === 'function'
-    ? (isAnime ? selectedServer.getUrl(cleanTmdbId, activeEpisode) : selectedServer.getUrl(cleanTmdbId))
+    ? (isAnime || isSeries ? selectedServer.getUrl(cleanTmdbId, activeEpisode) : selectedServer.getUrl(cleanTmdbId))
     : '';
 
   return (
@@ -116,7 +117,7 @@ export default function MoviePlayer({ movie, onClose, onProgressUpdate }) {
               <span className="text-emerald-400 flex items-center gap-1 font-bold text-[10px]">
                 <ShieldCheck className="w-3.5 h-3.5" /> Secure Stream
               </span>
-              {isAnime && (
+              {(isAnime || isSeries) && (
                 <>
                   <span>•</span>
                   <span className="text-primary-light font-bold">Episode {activeEpisode} of {totalEpisodes}</span>
@@ -127,7 +128,7 @@ export default function MoviePlayer({ movie, onClose, onProgressUpdate }) {
         </div>
 
         <div className="flex items-center gap-3">
-          {isAnime && (
+          {(isAnime || isSeries) && (
             <div className="hidden md:flex items-center gap-1 glass-card rounded-xl p-1 border border-white/10">
               <button
                 onClick={() => setIsDub(false)}
@@ -201,7 +202,7 @@ export default function MoviePlayer({ movie, onClose, onProgressUpdate }) {
       </div>
 
       {/* Dynamic Episode Picker Area */}
-      {isAnime && (
+      {(isAnime || isSeries) && (
         <div className="bg-bg-deepest border-t border-white/[0.08] px-6 py-3 relative z-20 flex items-center gap-3 overflow-x-auto">
           <span className="text-xs font-bold text-white/40 uppercase font-mono tracking-wider shrink-0">Episodes:</span>
           <div className="flex items-center gap-2">

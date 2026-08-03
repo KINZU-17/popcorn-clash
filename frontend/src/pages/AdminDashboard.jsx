@@ -1,30 +1,51 @@
 import { useState, useEffect } from 'react';
 import { api } from '../utils/backendApi';
-import { Shield, Users, Film, Star, Calendar, Trash2, ShieldAlert, CheckCircle, RefreshCw } from 'lucide-react';
+import { Shield, Users, Film, Star, Calendar, Trash2, ShieldAlert, CheckCircle, RefreshCw, FileText } from 'lucide-react';
 
-export default function AdminDashboard({ movies = [], onDeleteMovie }) {
+export default function AdminDashboard() {
   const [activeTab, setActiveTab] = useState('users');
   const [users, setUsers] = useState([]);
+  const [movies, setMovies] = useState([]);
   const [reviews, setReviews] = useState([]);
   const [fixtures, setFixtures] = useState([]);
   const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [userPage, setUserPage] = useState(1);
+  const [userPagination, setUserPagination] = useState(null);
+  const [moviePage, setMoviePage] = useState(1);
+  const [moviePagination, setMoviePagination] = useState(null);
+  const [reviewPage, setReviewPage] = useState(1);
+  const [reviewPagination, setReviewPagination] = useState(null);
+  const [fixturePage, setFixturePage] = useState(1);
+  const [fixturePagination, setFixturePagination] = useState(null);
+  const [logs, setLogs] = useState([]);
+  const [logsLoading, setLogsLoading] = useState(false);
 
   const fetchData = async () => {
     setLoading(true);
     setError(null);
     try {
-      const [usersRes, reviewsRes, fixturesRes, statsRes] = await Promise.all([
-        api.users.list().catch(() => ({ users: [] })),
-        api.reviews.list().catch(() => ({ reviews: [] })),
-        api.fixtures.list().catch(() => ({ fixtures: [] })),
+      const [usersRes, moviesRes, reviewsRes, fixturesRes, statsRes] = await Promise.all([
+        api.admin.listUsers(userPage).catch(() => ({ users: [], pagination: null })),
+        api.admin.listMovies(moviePage).catch(() => ({ movies: [], pagination: null })),
+        api.admin.listReviews(reviewPage).catch(() => ({ reviews: [], pagination: null })),
+        api.admin.listFixtures(fixturePage).catch(() => ({ fixtures: [], pagination: null })),
         api.admin.getStats().catch(() => ({ stats: null })),
       ]);
 
+      setMovies(moviesRes.movies || []);
+      setMoviePagination(moviesRes.pagination || null);
+
       setUsers(usersRes.users || []);
+      setUserPagination(usersRes.pagination || null);
+
       setReviews(reviewsRes.reviews || []);
+      setReviewPagination(reviewsRes.pagination || null);
+
       setFixtures(fixturesRes.fixtures || []);
+      setFixturePagination(fixturesRes.pagination || null);
+
       setStats(statsRes.stats || null);
     } catch (err) {
       console.error('Failed to load admin data:', err);
@@ -36,41 +57,80 @@ export default function AdminDashboard({ movies = [], onDeleteMovie }) {
 
   useEffect(() => {
     fetchData();
-  }, []);
+  }, [userPage, moviePage, reviewPage, fixturePage]);
+
+  useEffect(() => {
+    const fetchLogs = async () => {
+      if (activeTab !== 'logs') return;
+      setLogsLoading(true);
+      try {
+        const res = await api.admin.getLogs();
+        setLogs(res.logs || []);
+      } catch (err) {
+        setError(err.message || 'Failed to load logs');
+      } finally {
+        setLogsLoading(false);
+      }
+    };
+    fetchLogs();
+  }, [activeTab]);
+  const refreshCurrentTab = () => {
+    fetchData();
+  };
 
   const handleToggleRole = async (user) => {
     const newRole = user.role === 'admin' ? 'member' : 'admin';
     try {
-      await api.admin.updateUserRole(user.id, newRole);
-      setUsers(users.map(u => u.id === user.id ? { ...u, role: newRole } : u));
+      await api.admin.updateUserRole(user.id);
+      await fetchData(); // Refresh data
     } catch (err) {
       alert(err.message || 'Failed to update user role');
     }
   };
 
+  const handleBanUser = async (userId, is_banned) => {
+    const action = is_banned ? 'ban' : 'unban';
+    if (!window.confirm(`Are you sure you want to ${action} this user?`)) return;
+    try {
+      await api.admin.banUser(userId, is_banned);
+      await refreshCurrentTab(); // Refresh data
+    } catch (err) {
+      alert(err.message || `Failed to ${action} user`);
+    }
+  };
   const handleDeleteUser = async (userId) => {
-    if (!confirm('Are you sure you want to delete this user? All their data will be removed.')) return;
+    if (!window.confirm('Are you sure you want to delete this user? All their data will be removed.')) return;
     try {
       await api.admin.deleteUser(userId);
-      setUsers(users.filter(u => u.id !== userId));
+      await refreshCurrentTab(); // Refresh data
     } catch (err) {
       alert(err.message || 'Failed to delete user');
     }
   };
 
   const handleDeleteReview = async (reviewId) => {
+    if (!window.confirm('Are you sure you want to delete this review?')) return;
     try {
-      await api.reviews.delete(reviewId);
-      setReviews(reviews.filter(r => r.id !== reviewId));
+      await api.admin.deleteReview(reviewId);
+      await refreshCurrentTab(); // Refresh data
     } catch (err) {
       alert(err.message || 'Failed to delete review');
     }
   };
 
+  const handleDeleteMovie = async (movieId) => {
+    if (!window.confirm('Are you sure you want to delete this movie?')) return;
+    try {
+      await api.admin.deleteMovie(movieId);
+      await refreshCurrentTab(); // Refresh data
+    } catch (err) {
+      alert(err.message || 'Failed to delete movie');
+    }
+  };
   const handleUpdateFixtureStatus = async (fixtureId, newStatus) => {
     try {
       await api.fixtures.updateStatus(fixtureId, newStatus);
-      setFixtures(fixtures.map(f => f.id === fixtureId ? { ...f, status: newStatus } : f));
+      await refreshCurrentTab(); // Refresh data
     } catch (err) {
       alert(err.message || 'Failed to update fixture status');
     }
@@ -89,7 +149,7 @@ export default function AdminDashboard({ movies = [], onDeleteMovie }) {
           <p className="text-xs text-white/50 mt-1">Manage users, moderate content, oversee fixtures, and monitor platform health.</p>
         </div>
         <button
-          onClick={fetchData}
+          onClick={refreshCurrentTab}
           className="px-4 py-2 bg-white/10 hover:bg-white/20 text-white text-xs font-bold font-mono rounded-xl transition-all flex items-center gap-2 w-fit cursor-pointer"
         >
           <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} /> Refresh Data
@@ -137,10 +197,11 @@ export default function AdminDashboard({ movies = [], onDeleteMovie }) {
       {/* Tabs Navigation */}
       <div className="flex gap-2 border-b border-white/10 pb-3 font-mono text-xs overflow-x-auto">
         {[
-          { id: 'users', label: `Users (${users.length})`, icon: Users },
-          { id: 'movies', label: `Movies (${movies.length})`, icon: Film },
-          { id: 'reviews', label: `Reviews (${reviews.length})`, icon: Star },
+          { id: 'users', label: `Users (${userPagination?.total || 0})`, icon: Users },
+          { id: 'movies', label: `Movies (${moviePagination?.total || 0})`, icon: Film },
+          { id: 'reviews', label: `Reviews (${reviewPagination?.total || 0})`, icon: Star },
           { id: 'fixtures', label: `Fixtures (${fixtures.length})`, icon: Calendar },
+          { id: 'logs', label: 'Audit Logs', icon: FileText },
         ].map((tab) => {
           const Icon = tab.icon;
           return (
@@ -215,6 +276,16 @@ export default function AdminDashboard({ movies = [], onDeleteMovie }) {
                         {u.role === 'admin' ? 'Make Member' : 'Make Admin'}
                       </button>
                       <button
+                        onClick={() => handleBanUser(u.id, !u.is_banned)}
+                        className={`px-3 py-1 rounded-lg text-[10px] font-mono transition-colors cursor-pointer ${
+                          u.is_banned
+                            ? 'bg-green-500/20 hover:bg-green-500/40 text-green-400'
+                            : 'bg-orange-500/20 hover:bg-orange-500/40 text-orange-400'
+                        }`}
+                      >
+                        {u.is_banned ? 'Unban' : 'Ban'}
+                      </button>
+                      <button
                         onClick={() => handleDeleteUser(u.id)}
                         className="p-1.5 bg-red-500/20 hover:bg-red-500/40 text-red-400 rounded-lg transition-colors cursor-pointer"
                       >
@@ -226,6 +297,29 @@ export default function AdminDashboard({ movies = [], onDeleteMovie }) {
               </tbody>
             </table>
           </div>
+          {userPagination && userPagination.pages > 1 && (
+            <div className="flex items-center justify-between p-4 border-t border-white/10">
+              <span className="text-xs text-white/40 font-mono">
+                Page {userPagination.page} of {userPagination.pages} ({userPagination.total} users)
+              </span>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => setUserPage(p => p - 1)}
+                  disabled={userPagination.page <= 1}
+                  className="px-3 py-1 bg-white/10 hover:bg-white/20 rounded-lg text-[10px] font-mono transition-colors cursor-pointer disabled:opacity-50"
+                >
+                  Previous
+                </button>
+                <button
+                  onClick={() => setUserPage(p => p + 1)}
+                  disabled={userPagination.page >= userPagination.pages}
+                  className="px-3 py-1 bg-white/10 hover:bg-white/20 rounded-lg text-[10px] font-mono transition-colors cursor-pointer disabled:opacity-50"
+                >
+                  Next
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       )}
 
@@ -257,7 +351,7 @@ export default function AdminDashboard({ movies = [], onDeleteMovie }) {
                     <td className="px-6 py-4 font-mono text-amber-400">★ {m.rating || 'N/A'}</td>
                     <td className="px-6 py-4 text-right">
                       <button
-                        onClick={() => onDeleteMovie(m.id)}
+                        onClick={() => handleDeleteMovie(m.id)}
                         className="p-1.5 bg-red-500/20 hover:bg-red-500/40 text-red-400 rounded-lg transition-colors cursor-pointer"
                       >
                         <Trash2 className="w-3.5 h-3.5" />
@@ -268,31 +362,79 @@ export default function AdminDashboard({ movies = [], onDeleteMovie }) {
               </tbody>
             </table>
           </div>
+          {moviePagination && moviePagination.pages > 1 && (
+            <div className="flex items-center justify-between p-4 border-t border-white/10">
+              <span className="text-xs text-white/40 font-mono">
+                Page {moviePagination.page} of {moviePagination.pages} ({moviePagination.total} movies)
+              </span>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => setMoviePage(p => p - 1)}
+                  disabled={moviePagination.page <= 1}
+                  className="px-3 py-1 bg-white/10 hover:bg-white/20 rounded-lg text-[10px] font-mono transition-colors cursor-pointer disabled:opacity-50"
+                >
+                  Previous
+                </button>
+                <button
+                  onClick={() => setMoviePage(p => p + 1)}
+                  disabled={moviePagination.page >= moviePagination.pages}
+                  className="px-3 py-1 bg-white/10 hover:bg-white/20 rounded-lg text-[10px] font-mono transition-colors cursor-pointer disabled:opacity-50"
+                >
+                  Next
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       )}
 
       {/* Reviews Tab */}
       {activeTab === 'reviews' && (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {reviews.map((r) => (
-            <div key={r.id} className="glass-card p-5 rounded-2xl border border-white/10 flex justify-between gap-4">
-              <div className="flex-1">
-                <div className="flex items-center justify-between mb-2">
-                  <h4 className="font-bold text-white text-sm">{r.movie_title || r.movieTitle}</h4>
-                  <span className="text-amber-400 font-mono text-xs">★ {r.rating}/5</span>
+        <>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {reviews.map((r) => (
+              <div key={r.id} className="glass-card p-5 rounded-2xl border border-white/10 flex justify-between gap-4">
+                <div className="flex-1">
+                  <div className="flex items-center justify-between mb-2">
+                    <h4 className="font-bold text-white text-sm">{r.movie_title || r.movieTitle}</h4>
+                    <span className="text-amber-400 font-mono text-xs">★ {r.rating}/5</span>
+                  </div>
+                  <p className="text-xs text-white/70 leading-relaxed mb-3">{r.text}</p>
+                  <div className="text-[10px] text-white/40 font-mono">Posted: {r.created_at || 'Recently'}</div>
                 </div>
-                <p className="text-xs text-white/70 leading-relaxed mb-3">{r.text}</p>
-                <div className="text-[10px] text-white/40 font-mono">Posted: {r.created_at || 'Recently'}</div>
+                <button
+                  onClick={() => handleDeleteReview(r.id)}
+                  className="p-2 bg-red-500/20 hover:bg-red-500/40 text-red-400 rounded-xl h-fit transition-colors cursor-pointer"
+                >
+                  <Trash2 className="w-4 h-4" />
+                </button>
               </div>
-              <button
-                onClick={() => handleDeleteReview(r.id)}
-                className="p-2 bg-red-500/20 hover:bg-red-500/40 text-red-400 rounded-xl h-fit transition-colors cursor-pointer"
-              >
-                <Trash2 className="w-4 h-4" />
-              </button>
+            ))}
+          </div>
+          {reviewPagination && reviewPagination.pages > 1 && (
+            <div className="flex items-center justify-between p-4 border-t border-white/10 mt-4 glass-card rounded-2xl">
+              <span className="text-xs text-white/40 font-mono">
+                Page {reviewPagination.page} of {reviewPagination.pages} ({reviewPagination.total} reviews)
+              </span>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => setReviewPage(p => p - 1)}
+                  disabled={reviewPagination.page <= 1}
+                  className="px-3 py-1 bg-white/10 hover:bg-white/20 rounded-lg text-[10px] font-mono transition-colors cursor-pointer disabled:opacity-50"
+                >
+                  Previous
+                </button>
+                <button
+                  onClick={() => setReviewPage(p => p + 1)}
+                  disabled={reviewPagination.page >= reviewPagination.pages}
+                  className="px-3 py-1 bg-white/10 hover:bg-white/20 rounded-lg text-[10px] font-mono transition-colors cursor-pointer disabled:opacity-50"
+                >
+                  Next
+                </button>
+              </div>
             </div>
-          ))}
-        </div>
+          )}
+        </>
       )}
 
       {/* Fixtures Tab */}
@@ -346,6 +488,69 @@ export default function AdminDashboard({ movies = [], onDeleteMovie }) {
                         </button>
                       ))}
                     </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          {fixturePagination && fixturePagination.pages > 1 && (
+            <div className="flex items-center justify-between p-4 border-t border-white/10">
+              <span className="text-xs text-white/40 font-mono">
+                Page {fixturePagination.page} of {fixturePagination.pages} ({fixturePagination.total} fixtures)
+              </span>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => setFixturePage(p => p - 1)}
+                  disabled={fixturePagination.page <= 1}
+                  className="px-3 py-1 bg-white/10 hover:bg-white/20 rounded-lg text-[10px] font-mono transition-colors cursor-pointer disabled:opacity-50"
+                >
+                  Previous
+                </button>
+                <button
+                  onClick={() => setFixturePage(p => p + 1)}
+                  disabled={fixturePagination.page >= fixturePagination.pages}
+                  className="px-3 py-1 bg-white/10 hover:bg-white/20 rounded-lg text-[10px] font-mono transition-colors cursor-pointer disabled:opacity-50"
+                >
+                  Next
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Logs Tab */}
+      {activeTab === 'logs' && (
+        <div className="glass-card rounded-2xl border border-white/10 overflow-hidden">
+          <div className="p-4 bg-white/[0.04] border-b border-white/10">
+            <h3 className="text-sm font-bold text-white">System Audit Logs</h3>
+            <p className="text-xs text-white/50 mt-1">Showing the last 200 log entries.</p>
+          </div>
+          <div className="overflow-x-auto max-h-[60vh]">
+            <table className="w-full text-left text-xs text-white/80">
+              <thead className="bg-white/[0.04] uppercase text-[10px] font-mono text-white/40 border-b border-white/10 sticky top-0">
+                <tr>
+                  <th className="px-6 py-4">Timestamp</th>
+                  <th className="px-6 py-4">Level</th>
+                  <th className="px-6 py-4">Event</th>
+                  <th className="px-6 py-4">Details</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-white/[0.06]">
+                {logsLoading ? (
+                  <tr><td colSpan="4" className="text-center p-8 font-mono text-white/40">Loading logs...</td></tr>
+                ) : logs.map((log, index) => (
+                  <tr key={index} className="hover:bg-white/[0.02]">
+                    <td className="px-6 py-4 font-mono text-white/40 whitespace-nowrap">{new Date(log.timestamp).toLocaleString()}</td>
+                    <td className="px-6 py-4 font-mono">
+                      <span className={`px-2 py-0.5 rounded text-[9px] font-bold ${
+                        log.level === 'error' ? 'bg-red-500/20 text-red-400' :
+                        log.level === 'warning' ? 'bg-orange-500/20 text-orange-400' :
+                        'bg-white/10 text-white/60'
+                      }`}>{log.level}</span>
+                    </td>
+                    <td className="px-6 py-4 font-mono font-bold text-white">{log.event}</td>
+                    <td className="px-6 py-4 font-mono text-white/60 text-[11px]"><pre className="whitespace-pre-wrap break-all">{JSON.stringify(log, (key, value) => ['timestamp', 'level', 'event'].includes(key) ? undefined : value, 2)}</pre></td>
                   </tr>
                 ))}
               </tbody>

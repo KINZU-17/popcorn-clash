@@ -2,14 +2,38 @@
 import { TrendingUp } from 'lucide-react';
 import { useGame } from '../context/GameStateContext';
 
-export default function StatsView({ movies = [] }) {
+export default function StatsView({ movies = [], history = [] }) {
   const { user } = useGame();
 
-  const totalMovies = movies.length;
-  const watchedCount = movies.filter(m => m.status === 'watched').length;
+  // Combine movies from library and history for accurate stats
+  const allLibraryMovies = [
+    ...movies,
+    ...history
+      .filter(h => !movies.some(m => m.title === h.title)) // Avoid duplicates
+      .map(h => ({
+        ...h,
+        status: 'watched', // Ensure history items are marked as watched
+        isFavorite: false,
+      })),
+  ];
+
+  const totalMovies = allLibraryMovies.length;
+  const watchedMovies = allLibraryMovies.filter(m => m.status === 'watched');
+  const watchedCount = watchedMovies.length;
   const watchlistCount = movies.filter(m => m.status === 'watchlist').length;
   const watchingCount = movies.filter(m => m.status === 'watching').length;
-  const hoursWatched = watchedCount * 2;
+  const hoursWatched = Math.floor(
+    watchedMovies
+      .filter(m => m.duration)
+      .reduce((total, movie) => {
+        const durationStr = movie.duration || '';
+        const hoursMatch = durationStr.match(/(\d+)h/);
+        const minsMatch = durationStr.match(/(\d+)m/);
+        const hours = hoursMatch ? parseInt(hoursMatch[1], 10) : 0;
+        const minutes = minsMatch ? parseInt(minsMatch[1], 10) : 0;
+        return total + hours + (minutes / 60);
+      }, 0)
+  );
   const favoriteCount = movies.filter(m => m.isFavorite).length;
 
   const genreCount = {};

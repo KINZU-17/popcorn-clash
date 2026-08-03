@@ -12,6 +12,7 @@ from app.database.queries import (
 from app.utils.auth import login_required, admin_required
 from app.utils.schemas import ProfileUpdateSchema
 
+from flask_restful import reqparse
 users_bp = Blueprint("users", __name__, url_prefix="/api/users")
 users_api = Api(users_bp)
 profile_update_schema = ProfileUpdateSchema()
@@ -84,16 +85,32 @@ class ProfileResource(Resource):
 class UserListResource(Resource):
     @admin_required
     def get(self):
+        parser = reqparse.RequestParser()
+        parser.add_argument("page", type=int, default=1, location="args")
+        parser.add_argument("per_page", type=int, default=10, location="args")
+        args = parser.parse_args()
+        page = args["page"]
+        per_page = args["per_page"]
+        offset = (page - 1) * per_page
+
         from app.database.connection import get_cursor
 
         with get_cursor() as cur:
+            cur.execute("SELECT COUNT(*) as count FROM users")
+            total = cur.fetchone()['count']
+
             cur.execute("""
-                SELECT id, username, email, favorite_club, current_level, total_xp, prediction_streak, role
+                SELECT id, username, email, favorite_club, current_level, total_xp, prediction_streak, role, is_banned
                 FROM users
                 ORDER BY id ASC
-            """)
+                LIMIT ? OFFSET ?
+            """, (per_page, offset))
             users = [dict(row) for row in cur.fetchall()]
-        return {"users": users}
+
+        return {
+            "users": users,
+            "pagination": {"total": total, "page": page, "per_page": per_page, "pages": (total + per_page - 1) // per_page}
+        }
 
 
 class UserRoleResource(Resource):

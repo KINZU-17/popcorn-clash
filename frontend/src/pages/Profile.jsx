@@ -120,15 +120,39 @@ const Profile = ({ movies = [], collections = [], history = [] }) => {
     });
   };
 
-  const watchedCount = movies.filter(m => m.status === 'watched').length;
-  const hoursWatched = Math.floor(watchedCount * 1.8);
+  const watchedMovies = [
+    ...movies.filter(m => m.status === 'watched'),
+    ...history
+      .filter(h => !movies.some(m => m.title === h.title && m.status === 'watched'))
+      .map(h => ({ ...h, id: h.id || h.title })) // Ensure a unique key
+  ].filter((v, i, a) => a.findIndex(t => (t.id === v.id)) === i); // Deduplicate
+
+  const watchedCount = watchedMovies.length;
+  
+  const hoursWatched = Math.floor(
+    // Use the combined watchedMovies list for calculation
+    watchedMovies
+      .filter(m => m.duration)
+      .reduce((total, movie) => {
+        const durationStr = movie.duration || '';
+        const hoursMatch = durationStr.match(/(\d+)h/);
+        const minsMatch = durationStr.match(/(\d+)m/);
+        const hours = hoursMatch ? parseInt(hoursMatch[1], 10) : 0;
+        const minutes = minsMatch ? parseInt(minsMatch[1], 10) : 0;
+        const totalMinutes = (hours * 60) + minutes;
+        // If duration is just a number, assume it's minutes
+        if (!hoursMatch && !minsMatch && !isNaN(parseInt(durationStr, 10))) {
+          return total + (parseInt(durationStr, 10) / 60);
+        }
+        return total + (totalMinutes / 60);
+      }, 0)
+  );
   const genreCount = movies.reduce((acc, m) => {
     if (m.genre) acc[m.genre] = (acc[m.genre] || 0) + 1;
     return acc;
   }, {});
   const topGenres = Object.entries(genreCount).sort(([, a], [, b]) => b - a).slice(0, 3);
 
-  const watchedMovies = movies.filter(m => m.status === 'watched');
   const watchlist = movies.filter(m => m.status === 'watchlist').slice(0, 5);
   const favorites = movies.filter(m => m.isFavorite).slice(0, 4);
   const recentHistory = history.slice(0, 5);
@@ -171,7 +195,7 @@ const Profile = ({ movies = [], collections = [], history = [] }) => {
           <StatCard
             icon={<FilmIcon className="h-7 w-7 text-secondary" />}
             label="Titles Logged"
-            value={movies.length}
+            value={watchedCount}
           />
           <StatCard
             icon={<ChartPieIcon className="h-7 w-7 text-accent-pink" />}

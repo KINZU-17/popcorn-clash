@@ -1,6 +1,8 @@
 from datetime import datetime
 from typing import Optional
+from app.utils.auth import get_online_user_ids
 from .connection import get_cursor
+import random
 
 
 def get_user_by_email(email: str) -> Optional[dict]:
@@ -28,24 +30,29 @@ def create_user(username: str, email: str, password_hash: str, favorite_club: st
 
 def search_users(query: str = "", current_user_id: int | None = None) -> list[dict]:
     with get_cursor() as cur:
-        search_pattern = f"%{query}%"
+        limit_clause = "LIMIT 50" if query else ""  # No limit for admin fetching all users
+        search_pattern = f"%{query}%" if query else "%"
         if current_user_id:
-            cur.execute("""
-                SELECT id, username, email, favorite_club, current_level, total_xp
+            cur.execute(f"""
+                SELECT id, username, email, favorite_club, current_level, total_xp, role, is_banned
                 FROM users
                 WHERE id != ? AND (username LIKE ? OR email LIKE ?)
                 ORDER BY username ASC
-                LIMIT 50
+                {limit_clause}
             """, (current_user_id, search_pattern, search_pattern))
         else:
-            cur.execute("""
-                SELECT id, username, email, favorite_club, current_level, total_xp
+            cur.execute(f"""
+                SELECT id, username, email, favorite_club, current_level, total_xp, role, is_banned
                 FROM users
                 WHERE username LIKE ? OR email LIKE ?
                 ORDER BY username ASC
-                LIMIT 50
+                {limit_clause}
             """, (search_pattern, search_pattern))
-        return [dict(row) for row in cur.fetchall()]
+        users = [dict(row) for row in cur.fetchall()]
+        online_user_ids = get_online_user_ids()
+        for user in users:
+            user['is_online'] = user['id'] in online_user_ids
+        return users
 
 
 def get_user_by_id(user_id: int) -> Optional[dict]:
@@ -112,7 +119,7 @@ def get_all_fixtures() -> list[dict]:
             JOIN teams a ON f.team_away_id = a.id
             ORDER BY f.match_date ASC
         """)
-        return [dict(row) for row in cur.fetchall()]
+        return [dict(row) for row in cur.fetchall()] # Kept for non-paginated calls
 
 
 def create_fixture(team_home_id: int, team_away_id: int, match_date: str, status: str = "SCHEDULED") -> int:
@@ -202,10 +209,26 @@ def create_movie(tmdb_id, title, overview, poster_url, genre, year, rating, dura
         return cur.lastrowid
 
 
-def get_all_movies(limit: int = 50) -> list[dict]:
+def get_all_movies(limit: int = 50, page: int = 1, per_page: int = 10, paginated: bool = False) -> list[dict] | dict:
     with get_cursor() as cur:
-        cur.execute("SELECT * FROM movies ORDER BY year DESC, rating DESC LIMIT ?", (limit,))
-        return [dict(row) for row in cur.fetchall()]
+        if paginated:
+            offset = (page - 1) * per_page
+            cur.execute("SELECT COUNT(*) as count FROM movies")
+            total = cur.fetchone()['count']
+            cur.execute("SELECT * FROM movies ORDER BY year DESC, rating DESC LIMIT ? OFFSET ?", (per_page, offset))
+            movies = [dict(row) for row in cur.fetchall()]
+            return {
+                "movies": movies,
+                "pagination": {"total": total, "page": page, "per_page": per_page, "pages": (total + per_page - 1) // per_page}
+            }
+
+        if limit > 0:
+            cur.execute("SELECT * FROM movies ORDER BY year DESC, rating DESC LIMIT ?", (limit,))
+        else: # limit 0 means all
+            cur.execute("SELECT * FROM movies ORDER BY year DESC, rating DESC")
+        
+        movies = [dict(row) for row in cur.fetchall()]
+        return {"movies": movies}
 
 
 def get_movie_by_id(movie_id: int) -> dict | None:
@@ -224,10 +247,24 @@ def create_review(user_id: int, movie_title: str, rating: int, text: str, poster
         return cur.lastrowid
 
 
-def get_all_reviews() -> list[dict]:
+def get_all_reviews(page: int = 1, per_page: int = 10, paginated: bool = False) -> list[dict] | dict:
     with get_cursor() as cur:
+        if paginated:
+            offset = (page - 1) * per_page
+            cur.execute("SELECT COUNT(*) as count FROM reviews")
+            total = cur.fetchone()['count']
+            cur.execute("SELECT * FROM reviews ORDER BY created_at DESC LIMIT ? OFFSET ?", (per_page, offset))
+            reviews = [dict(row) for row in cur.fetchall()]
+            return {
+                "reviews": reviews,
+                "pagination": {"total": total, "page": page, "per_page": per_page, "pages": (total + per_page - 1) // per_page}
+            }
+
         cur.execute("SELECT * FROM reviews ORDER BY created_at DESC")
-        return [dict(row) for row in cur.fetchall()]
+        reviews = [dict(row) for row in cur.fetchall()]
+        return {
+            "reviews": reviews
+        }
 
 
 def update_review(review_id: int, **kwargs) -> None:
@@ -346,6 +383,11 @@ def delete_watch_history_entry(entry_id: int, user_id: int) -> None:
 def update_user_role(user_id: int, role: str) -> None:
     with get_cursor() as cur:
         cur.execute("UPDATE users SET role = ? WHERE id = ?", (role, user_id))
+
+
+def update_user_ban_status(user_id: int, is_banned: bool) -> None:
+    with get_cursor() as cur:
+        cur.execute("UPDATE users SET is_banned = ? WHERE id = ?", (int(is_banned), user_id))
 
 
 def delete_user(user_id: int) -> None:

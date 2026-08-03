@@ -1,5 +1,5 @@
 from functools import wraps
-from flask import request, jsonify
+from flask import request, jsonify, g
 import secrets
 from flask_bcrypt import Bcrypt
 
@@ -12,6 +12,10 @@ def create_token(user_id: int) -> str:
     token = secrets.token_urlsafe(32)
     _active_tokens[token] = user_id
     return token
+
+
+def get_online_user_ids() -> set[int]:
+    return set(_active_tokens.values())
 
 
 def _current_user_id() -> int | None:
@@ -29,6 +33,20 @@ def login_required(fn):
         if not user_id:
             return jsonify({"error": "Unauthorized"}), 401
         request.user_id = user_id
+        return fn(*args, **kwargs)
+    return wrapper
+
+
+def super_admin_required(fn):
+    @wraps(fn)
+    def wrapper(*args, **kwargs):
+        # First, ensure the user is an admin
+        auth_check = admin_required(lambda: None)()
+        if auth_check is not None:
+            return auth_check
+
+        if g.user.get('email') != 'admin@popcornclash@gmail.com':
+            return jsonify({"error": "Forbidden: super admin access required"}), 403
         return fn(*args, **kwargs)
     return wrapper
 

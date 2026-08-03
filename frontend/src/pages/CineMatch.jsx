@@ -95,7 +95,13 @@ export default function CineMatch() {
   useEffect(() => { localStorage.setItem('popcornclash_collections', JSON.stringify(collections)); }, [collections]);
   useEffect(() => { localStorage.setItem('popcornclash_tab', activeTab); }, [activeTab]);
 
-  const handleDeleteMovie = async (id) => { await deleteMovie(id); };
+  const handleDeleteMovie = async (id) => {
+    if (user?.role === 'admin') {
+      await api.admin.deleteMovie(id);
+    } else {
+      await deleteMovie(id);
+    }
+  };
 
   const handleUpdateMovieStatus = async (id, patch) => {
     setMovieStatus(id, patch);
@@ -158,12 +164,14 @@ export default function CineMatch() {
           )}
           {activeTab === 'discover' && (
             <DiscoverView
+              libraryMovies={movies}
               onCreateMovie={createMovie}
               searchQueryFromHeader={searchQuery} onPlayMovie={setActivePlayingMovie}
             />
           )}
           {activeTab === 'anime' && (
             <DiscoverView
+              libraryMovies={movies}
               mode="anime"
               onCreateMovie={createMovie}
               searchQueryFromHeader={searchQuery} onPlayMovie={setActivePlayingMovie}
@@ -171,12 +179,13 @@ export default function CineMatch() {
           )}
           {activeTab === 'series' && (
             <DiscoverView
+              libraryMovies={movies}
               mode="series"
               onCreateMovie={createMovie}
               searchQueryFromHeader={searchQuery} onPlayMovie={setActivePlayingMovie}
             />
           )}
-          {activeTab === 'stats' && <StatsView movies={movies} />}
+          {activeTab === 'stats' && <StatsView movies={movies} history={history} />}
           {activeTab === 'companion' && <LiveCompanion />}
         </>
       );
@@ -186,7 +195,7 @@ export default function CineMatch() {
     if (activePage === 'leaderboard') return <Leaderboard />;
     if (activePage === 'analytics') return <Analytics />;
     if (activePage === 'profile') return <Profile movies={movies} collections={collections} history={history} />;
-    if (activePage === 'admin') return <AdminDashboard movies={movies} onDeleteMovie={handleDeleteMovie} />;
+    if (activePage === 'admin') return <AdminDashboard />;
     if (activePage === 'create-fixture') return <CreateFixture />;
     return null;
   };

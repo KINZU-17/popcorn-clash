@@ -1,14 +1,15 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Play, Plus, Film, Loader2, Tv, Sparkles } from 'lucide-react';
+import { Play, Plus, Film, Loader2, Tv, Sparkles, CheckCircle2 } from 'lucide-react';
 import { fetchMovies, fetchMoviesByGenre, fetchAnime, fetchTvSeries } from '../utils/streamingApi';
 
 const GENRES = ['All Genres', 'Action', 'Animation', 'Comedy', 'Crime', 'Documentary', 'Drama', 'Fantasy', 'Horror', 'Mystery', 'Romance', 'Sci-Fi', 'Thriller'];
 
-export default function DiscoverView({ mode = 'discover', onCreateMovie, searchQueryFromHeader = '', onPlayMovie }) {
+export default function DiscoverView({ mode = 'discover', onCreateMovie, searchQueryFromHeader = '', onPlayMovie, libraryMovies = [] }) {
   const [searchKeyword, setSearchKeyword] = useState('');
   const [selectedGenre, setSelectedGenre] = useState('All Genres');
   const [movies, setMovies] = useState([]);
   const [loading, setLoading] = useState(true);
+  const libraryMovieIds = new Set(libraryMovies.map(m => String(m.tmdb_id)));
 
   const loadMovies = useCallback(async (query = '', genre = '') => {
     setLoading(true);
@@ -44,6 +45,13 @@ export default function DiscoverView({ mode = 'discover', onCreateMovie, searchQ
 
   const handleAddMovie = (movie) => {
     onCreateMovie(movie);
+  };
+
+  const handlePlay = (movie) => {
+    const movieToPlay = { ...movie };
+    if (mode === 'anime') movieToPlay.type = 'anime';
+    if (mode === 'series') movieToPlay.type = 'series';
+    onPlayMovie(movieToPlay);
   };
 
   const viewTitle = mode === 'anime' ? 'Anime Hub' : mode === 'series' ? 'TV Series & Shows' : 'Discover Films';
@@ -99,35 +107,46 @@ export default function DiscoverView({ mode = 'discover', onCreateMovie, searchQ
           </div>
         ) : (
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-4">
-            {movies.map(movie => (
-              <div key={movie.id} className="group relative bg-surface-container-low border border-surface-container-high p-2 hover:border-surface-container-high transition-all">
-                <div className="relative w-full aspect-3/4 bg-linear-to-b from-white/10 to-white/5 border border-surface-container-high mb-2 overflow-hidden flex items-center justify-center">
-                  {movie.posterUrl
-                    ? <img src={movie.posterUrl} alt={movie.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
-                    : <Film className="w-12 h-12 text-surface-container-high" />
-                  }
-                  <div className="absolute inset-0 bg-surface-container-low opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
-                    <button onClick={() => onPlayMovie(movie)} className="p-2.5 bg-white text-on-primary-container hover:bg-surface-container-high transition-colors cursor-pointer">
-                      <Play className="w-4 h-4 fill-current" />
-                    </button>
-                    <button
-                      onClick={() => handleAddMovie(movie)}
-                      className="p-2.5 bg-surface-container-high text-white hover:bg-white/30 transition-colors cursor-pointer"
-                    >
-                      <Plus className="w-4 h-4" />
-                    </button>
-                  </div>
-                  {movie.rating && (
+            {movies.map(movie => {
+              const isInLibrary = libraryMovieIds.has(String(movie.id));
+              return (
+                <div key={movie.id} className="group relative bg-surface-container-low border border-surface-container-high p-2 hover:border-surface-container-high transition-all">
+                  <div className="relative w-full aspect-3/4 bg-linear-to-b from-white/10 to-white/5 border border-surface-container-high mb-2 overflow-hidden flex items-center justify-center">
+                    {movie.posterUrl
+                      ? <img src={movie.posterUrl} alt={movie.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
+                      : <Film className="w-12 h-12 text-surface-container-high" />
+                    }
+                    <div className="absolute inset-0 bg-surface-container-low opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
+                      <button onClick={() => handlePlay(movie)} className="p-2.5 bg-white text-on-primary-container hover:bg-surface-container-high transition-colors cursor-pointer">
+                        <Play className="w-4 h-4 fill-current" />
+                      </button>
+                      {!isInLibrary && (
+                        <button
+                          onClick={() => handleAddMovie(movie)}
+                          className="p-2.5 bg-surface-container-high text-white hover:bg-white/30 transition-colors cursor-pointer"
+                        >
+                          <Plus className="w-4 h-4" />
+                        </button>
+                      )}
+                    </div>
+                    {isInLibrary && (
+                      <div className="absolute top-2 right-2 flex items-center gap-1 bg-emerald-500/20 text-emerald-400 px-1.5 py-0.5 rounded-full border border-emerald-500/30">
+                        <CheckCircle2 className="w-2.5 h-2.5" />
+                        <span className="text-[8px] font-bold uppercase tracking-wider">Added</span>
+                      </div>
+                    )}
+                    {movie.rating && (
                     <div className="absolute top-2 left-2 bg-surface-container-low px-1.5 py-0.5 rounded text-[9px] font-mono text-popcorn-gold">
                       {movie.rating}
                     </div>
-                  )}
+                    )}
+                  </div>
+                  <h4 className="text-[10px] font-bold uppercase tracking-wider text-white truncate">{movie.title}</h4>
+                  <p className="text-[8px] text-on-surface-variant mt-0.5">{movie.year} • {movie.genre}</p>
+                  <p className="text-[8px] text-on-surface-variant mt-1 line-clamp-2">{movie.overview}</p>
                 </div>
-                <h4 className="text-[10px] font-bold uppercase tracking-wider text-white truncate">{movie.title}</h4>
-                <p className="text-[8px] text-on-surface-variant mt-0.5">{movie.year} • {movie.genre}</p>
-                <p className="text-[8px] text-on-surface-variant mt-1 line-clamp-2">{movie.overview}</p>
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
       </div>

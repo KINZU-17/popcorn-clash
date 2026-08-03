@@ -6,11 +6,12 @@ from dotenv import load_dotenv
 env_path = Path(__file__).resolve().parent.parent / ".env"
 load_dotenv(dotenv_path=env_path)
 
-from flask import Flask, jsonify, request
+from flask import Flask, jsonify, request, g
 from flask_cors import CORS
 from flask_migrate import Migrate
 from app.extensions import db
 from app.database.connection import init_db, seed_database
+from app.utils.auth import _current_user_id
 from app.utils.logger import logger
 
 
@@ -21,6 +22,15 @@ def create_app():
 
     db.init_app(app)
     Migrate(app, db)
+
+    @app.before_request
+    def load_logged_in_user():
+        user_id = _current_user_id()
+        if user_id is None:
+            g.user = None
+        else:
+            from app.database.queries import get_user_by_id
+            g.user = get_user_by_id(user_id)
 
     @app.after_request
     def log_request(response):
@@ -44,6 +54,7 @@ def create_app():
 
     # Import blueprints after env vars are loaded
     from app.routes.auth import auth_bp
+    from app.routes.admin import admin_bp
     from app.routes.teams import teams_bp
     from app.routes.fixtures import fixtures_bp
     from app.routes.predictions import predictions_bp
@@ -52,6 +63,7 @@ def create_app():
     from app.routes.reviews import reviews_bp
     from app.routes.history import history_bp
 
+    app.register_blueprint(admin_bp)
     app.register_blueprint(auth_bp)
     app.register_blueprint(teams_bp)
     app.register_blueprint(fixtures_bp)
@@ -65,6 +77,7 @@ def create_app():
         "Application initialized",
         routes=[
             "auth",
+            "admin",
             "teams",
             "fixtures",
             "predictions",

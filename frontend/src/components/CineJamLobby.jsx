@@ -1,12 +1,12 @@
 import { useState, useEffect, useCallback } from 'react';
-import { X, Plus, Trash2, Copy, Check, MessageSquare, Clock, Search, UserCheck } from 'lucide-react';
+import { X, Plus, Trash2, Copy, Check, MessageSquare, Clock, Search, UserCheck, Tv, CheckCircle2 } from 'lucide-react';
 import { fetchMovies } from '../utils/streamingApi';
 import { api } from '../utils/backendApi';
 
 export default function CineJamLobby({ onClose, onCreateMovie, onPlayMovie }) {
   const [step, setStep] = useState(1);
   const [participants, setParticipants] = useState(['You']);
-  const [participantDetails, setParticipantDetails] = useState({ You: 'Host • Level 42' });
+  const [participantDetails, setParticipantDetails] = useState({ You: { detail: 'Host • Level 42', ready: false } });
   const [selectedMoods, setSelectedMoods] = useState([]);
   const [selectedGenres, setSelectedGenres] = useState([]);
   const [matchedMovie, setMatchedMovie] = useState(null);
@@ -24,7 +24,7 @@ export default function CineJamLobby({ onClose, onCreateMovie, onPlayMovie }) {
   const searchDatabaseUsers = useCallback(async (queryText = '') => {
     setSearchingUsers(true);
     try {
-      const res = await api.users.search(queryText);
+      const res = await api.users.search(queryText, true); // Pass true to exclude self
       setDbUsers(res.users || []);
     } catch (err) {
       console.error('Failed to search database users:', err);
@@ -69,14 +69,23 @@ export default function CineJamLobby({ onClose, onCreateMovie, onPlayMovie }) {
 
     if (!participants.includes(name) && participants.length < 5) {
       setParticipants(prev => [...prev, name]);
-      setParticipantDetails(prev => ({ ...prev, [name]: detail }));
+      setParticipantDetails(prev => ({ ...prev, [name]: { detail, ready: false } }));
     }
   };
 
   const handleRemoveFriend = (friend) => {
     if (friend !== 'You') {
       setParticipants(participants.filter(f => f !== friend));
+      setParticipantDetails(prev => {
+        const newDetails = { ...prev };
+        delete newDetails[friend];
+        return newDetails;
+      });
     }
+  };
+
+  const handleToggleReady = (name) => {
+    setParticipantDetails(prev => ({ ...prev, [name]: { ...prev[name], ready: !prev[name]?.ready } }));
   };
 
   const handleToggleMood = (name) =>
@@ -124,6 +133,8 @@ export default function CineJamLobby({ onClose, onCreateMovie, onPlayMovie }) {
     }
   };
 
+  const allReady = participants.every(p => participantDetails[p]?.ready);
+
   return (
     <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
       <div className="bg-[#0c0a09] border border-surface-container-high w-full max-w-md max-h-[90vh] overflow-y-auto flex flex-col">
@@ -163,15 +174,25 @@ export default function CineJamLobby({ onClose, onCreateMovie, onPlayMovie }) {
                 <div className="space-y-3 mb-6">
                   {participants.map((p, idx) => (
                     <div key={idx} className="flex items-center justify-between p-3 bg-surface-container-low border border-surface-container-high">
-                      <div>
-                        <p className="text-xs font-bold text-white">{p === 'You' ? 'You (Host)' : p}</p>
-                        <p className="text-[8px] text-on-surface-variant mt-0.5">{participantDetails[p] || (p === 'You' ? 'Level 42 Cinephile' : 'Registered User')}</p>
+                      <div className="flex items-center gap-3">
+                        <div className={`w-2 h-2 rounded-full transition-colors ${participantDetails[p]?.ready ? 'bg-emerald-400' : 'bg-white/20'}`}></div>
+                        <div>
+                          <p className="text-xs font-bold text-white">{p === 'You' ? 'You (Host)' : p}</p>
+                          <p className="text-[8px] text-on-surface-variant mt-0.5">{participantDetails[p]?.detail || 'Registered User'}</p>
+                        </div>
                       </div>
-                      {p !== 'You' && (
-                        <button onClick={() => handleRemoveFriend(p)} className="p-1 text-on-surface-variant hover:text-red-400 transition-colors cursor-pointer">
-                          <Trash2 className="w-4 h-4" />
-                        </button>
-                      )}
+                      <div className="flex items-center gap-2">
+                        {p === 'You' && (
+                          <button onClick={() => handleToggleReady(p)} className={`px-3 py-1 text-[10px] font-bold uppercase tracking-wider transition-all rounded-lg ${participantDetails[p]?.ready ? 'bg-emerald-500/20 text-emerald-400' : 'bg-white/10 text-white hover:bg-white/20'}`}>
+                            {participantDetails[p]?.ready ? 'Ready' : 'Ready Up'}
+                          </button>
+                        )}
+                        {p !== 'You' && (
+                          <button onClick={() => handleRemoveFriend(p)} className="p-1.5 text-on-surface-variant hover:text-red-400 transition-colors cursor-pointer">
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        )}
+                      </div>
                     </div>
                   ))}
                 </div>
@@ -180,17 +201,17 @@ export default function CineJamLobby({ onClose, onCreateMovie, onPlayMovie }) {
               {/* Add friends from database search & custom invite */}
               <div>
                 <div className="flex items-center justify-between mb-2">
-                  <label className="text-xs font-bold uppercase tracking-[0.2em] text-white">
-                    Database Users & Friends ({dbUsers.length})
+                  <label className="text-xs font-bold uppercase tracking-[0.2em] text-white flex items-center gap-2">
+                    <Search className="w-3.5 h-3.5" />
+                    Search Users ({dbUsers.length})
                   </label>
                   <span className="text-[9px] text-white/40 font-mono">Click + Add to invite</span>
                 </div>
 
                 <div className="relative mb-3">
-                  <Search className="w-3.5 h-3.5 absolute left-3 top-3 text-white/40" />
                   <input
                     type="text"
-                    placeholder="Search database users by username or email..."
+                    placeholder="Search users by username or email..."
                     value={userQuery}
                     onChange={(e) => {
                       setUserQuery(e.target.value);
@@ -231,13 +252,23 @@ export default function CineJamLobby({ onClose, onCreateMovie, onPlayMovie }) {
                               <UserCheck className="w-3 h-3" /> In Jam
                             </span>
                           ) : (
-                            <button
-                              onClick={() => handleAddFriend(u)}
-                              disabled={participants.length >= 5}
-                              className="px-3 py-1 bg-white hover:bg-neutral-200 text-black font-bold text-[10px] uppercase tracking-wider transition-all cursor-pointer disabled:opacity-40 flex items-center gap-1 shadow-sm"
-                            >
-                              <Plus className="w-3 h-3" /> Add to Jam
-                            </button>
+                            <div className="flex items-center gap-2">
+                              {u.is_online && (
+                                <button
+                                  onClick={() => { handleAddFriend(u); setStep(2); }}
+                                  className="px-3 py-1 bg-primary hover:bg-primary-container text-on-primary-container font-bold text-[10px] uppercase tracking-wider transition-all cursor-pointer flex items-center gap-1 shadow-sm"
+                                >
+                                  <Tv className="w-3 h-3" /> Jam
+                                </button>
+                              )}
+                              <button
+                                onClick={() => handleAddFriend(u)}
+                                disabled={participants.length >= 5}
+                                className="px-3 py-1 bg-white hover:bg-neutral-200 text-black font-bold text-[10px] uppercase tracking-wider transition-all cursor-pointer disabled:opacity-40 flex items-center gap-1 shadow-sm"
+                              >
+                                <Plus className="w-3 h-3" /> Add
+                              </button>
+                            </div>
                           )}
                         </div>
                       );
@@ -304,10 +335,10 @@ export default function CineJamLobby({ onClose, onCreateMovie, onPlayMovie }) {
 
               <button
                 onClick={() => setStep(2)}
-                disabled={participants.length < 2}
+                disabled={participants.length < 2 || !allReady}
                 className="w-full py-3 bg-white text-black font-bold uppercase tracking-[0.2em] text-xs transition-all hover:bg-neutral-200 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
               >
-                Continue to Vibe Selection
+                {allReady ? 'Continue to Vibe Selection' : `Waiting for ${participants.filter(p => !participantDetails[p]?.ready).length} players...`}
               </button>
             </>
           )}

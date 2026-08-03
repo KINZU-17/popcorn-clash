@@ -159,6 +159,9 @@ class LoginResource(Resource):
         if not user or not _check_password(args["password"], user["password_hash"]):
             return {"error": "Invalid username or password"}, 401
 
+        if user.get("is_banned"):
+            return {"error": "This account has been suspended."}, 403
+
         token = create_token(user["id"])
         return {
             "user": {
