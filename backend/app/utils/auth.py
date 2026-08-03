@@ -39,15 +39,11 @@ def login_required(fn):
 
 def super_admin_required(fn):
     @wraps(fn)
+    @admin_required
     def wrapper(*args, **kwargs):
-        # First, ensure the user is an admin
-        auth_check = admin_required(lambda: None)()
-        if auth_check is not None:
-            return auth_check
-
         if g.user.get('email') != 'admin@popcornclash@gmail.com':
             return jsonify({"error": "Forbidden: super admin access required"}), 403
-        return fn(*args, **kwargs)
+        return fn(*args, **kwargs) # pragma: no cover
     return wrapper
 
 

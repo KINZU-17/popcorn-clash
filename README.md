@@ -185,11 +185,13 @@ A gamified sports entertainment and movie discovery web app built with a React f
 ### Auth
 - `POST /api/auth/register` - Register user
 - `POST /api/auth/login` - Login
+- `POST /api/auth/forgot-password` - Request password reset
+- `POST /api/auth/reset-password` - Reset password with token/code
 - `POST /api/auth/google` - Google OAuth
 
 ### Teams
 - `GET /api/teams` - List teams
-- `GET /api/teams/leaderboard` - Team leaderboard
+- `GET /api/teams/leaderboard` - Team leaderboard (Not implemented in routes)
 - `GET /api/teams/<id>` - Get team
 
 ### Fixtures
@@ -197,6 +199,7 @@ A gamified sports entertainment and movie discovery web app built with a React f
 - `GET /api/fixtures/<id>` - Get fixture
 - `POST /api/fixtures` - Create fixture (admin)
 - `PATCH /api/fixtures/<id>/status` - Update fixture status (admin)
+- `DELETE /api/fixtures/<id>` - Delete fixture (admin) (Specified but not implemented)
 
 ### Predictions
 - `POST /api/predictions` - Create prediction (protected)
@@ -221,11 +224,23 @@ A gamified sports entertainment and movie discovery web app built with a React f
 - `PATCH /api/reviews/<id>` - Update review
 - `DELETE /api/reviews/<id>` - Delete review
 
+### Admin (Not registered in app.py)
+- `GET /api/admin/stats` - Get application stats
+- `PATCH /api/admin/users/<int:user_id>/role` - Update user role
+- `DELETE /api/admin/users/<int:user_id>` - Delete a user
+- `PATCH /api/admin/users/<int:user_id>/ban` - Ban/unban a user
+- `DELETE /api/admin/reviews/<int:review_id>` - Delete a review
+- `DELETE /api/admin/movies/<int:movie_id>` - Delete a movie
+- `GET /api/admin/movies` - Paginated list of all movies
+- `GET /api/admin/reviews` - Paginated list of all reviews
+- `GET /api/admin/fixtures` - Paginated list of all fixtures
+- `GET /api/admin/logs` - Get recent application logs
+
 ## Setup
 
 ### Prerequisites
 - Node.js 18+
-- Python 3.14
+- Python 3.11+
 - PostgreSQL (optional; SQLite used by default)
 
 ### Backend
@@ -240,11 +255,11 @@ pip install -r requirements.txt  # or: pipenv install
 cp resources/.env.example .env
 # Edit .env with your values
 
-# Run migrations (first time)
-export FLASK_APP=run.py
-flask db init
-flask db migrate -m "initial"
-flask db upgrade
+# If using Flask-Migrate (Alembic), initialize and run migrations
+# export FLASK_APP=app.py
+# flask db init  # (Only first time)
+# flask db migrate -m "Initial migration"
+# flask db upgrade
 ```
 
 # Start development server

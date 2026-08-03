@@ -3,7 +3,7 @@ import json
 from flask import Blueprint, jsonify, g
 from flask_restful import Resource, Api, reqparse
 from app.database.connection import get_cursor
-from app.utils.decorators import super_admin_required
+from app.utils.auth import super_admin_required
 from app.utils.logger import logger
 from app.database.queries import (
     get_stats,
@@ -146,7 +146,7 @@ class AdminFixtureListResource(Resource):
 class AdminLogResource(Resource):
     @super_admin_required
     def get(self):
-        log_file_path = os.environ.get("LOG_FILE_PATH", os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), "app.log"))
+        log_file_path = os.environ.get("LOG_FILE_PATH", os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "app.log"))
         logs = []
         try:
             with open(log_file_path, 'r', encoding='utf-8') as f:

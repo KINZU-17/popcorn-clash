@@ -1,6 +1,5 @@
 from datetime import datetime
 from typing import Optional
-from app.utils.auth import get_online_user_ids
 from .connection import get_cursor
 import random
 
@@ -29,6 +28,7 @@ def create_user(username: str, email: str, password_hash: str, favorite_club: st
 
 
 def search_users(query: str = "", current_user_id: int | None = None) -> list[dict]:
+    from app.utils.auth import get_online_user_ids
     with get_cursor() as cur:
         limit_clause = "LIMIT 50" if query else ""  # No limit for admin fetching all users
         search_pattern = f"%{query}%" if query else "%"
@@ -96,8 +96,8 @@ def get_all_teams() -> list[dict]:
 def get_fixture(fixture_id: int) -> Optional[dict]:
     with get_cursor() as cur:
         cur.execute("""
-            SELECT f.*,
-                   h.name AS home_name, h.code AS home_code, h.league AS home_league,
+            SELECT f.*, h.league,
+                   h.name AS home_name, h.code AS home_code,
                    a.name AS away_name, a.code AS away_code, a.league AS away_league
             FROM fixtures f
             JOIN teams h ON f.team_home_id = h.id
@@ -111,8 +111,8 @@ def get_fixture(fixture_id: int) -> Optional[dict]:
 def get_all_fixtures() -> list[dict]:
     with get_cursor() as cur:
         cur.execute("""
-            SELECT f.*,
-                   h.name AS home_name, h.code AS home_code,
+            SELECT f.*, h.league,
+                   h.name AS home_name, h.code AS home_code, 
                    a.name AS away_name, a.code AS away_code
             FROM fixtures f
             JOIN teams h ON f.team_home_id = h.id

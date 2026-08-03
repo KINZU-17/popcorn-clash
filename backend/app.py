@@ -17,6 +17,7 @@ from app.routes.fixtures import fixtures_bp
 from app.routes.predictions import predictions_bp
 from app.routes.movies import movies_bp
 from app.routes.reviews import reviews_bp
+from app.routes.admin import admin_bp
 
 
 def create_app():
@@ -44,6 +45,7 @@ def create_app():
     app.register_blueprint(predictions_bp)
     app.register_blueprint(movies_bp)
     app.register_blueprint(reviews_bp)
+    app.register_blueprint(admin_bp)
 
     return app
 
