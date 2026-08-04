@@ -5,6 +5,7 @@ import Signup from './pages/Signup';
 import ForgotPassword from './pages/ForgotPassword';
 import CineMatch from './pages/CineMatch';
 import { ProtectedRoute } from './components/ProtectedRoute';
+import { AdminRoute } from './components/AdminRoute';
 
 const googleClientId = import.meta.env.VITE_GOOGLE_CLIENT_ID || '101234567890-abcdefghijklmnopqrstuvwxyz.apps.googleusercontent.com';
 
@@ -22,9 +23,11 @@ export default function App() {
             <Route path="/leaderboard" element={<CineMatch />} />
             <Route path="/analytics" element={<CineMatch />} />
             <Route path="/profile" element={<CineMatch />} />
-            <Route path="/admin" element={<CineMatch />} />
             <Route path="/match/:id" element={<CineMatch />} />
             <Route path="/fixtures/create" element={<CineMatch />} />
+          </Route>
+          <Route element={<AdminRoute />}>
+            <Route path="/admin" element={<CineMatch />} />
           </Route>
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>

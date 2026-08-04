@@ -3,6 +3,7 @@ import { api } from '../utils/backendApi';
 
 export default function Analytics() {
   const [stats, setStats] = useState(null);
+  const [predictions, setPredictions] = useState([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -11,6 +12,7 @@ export default function Analytics() {
       try {
         const data = await api.users.profile();
         setStats(data.user);
+        setPredictions(data.predictions || []);
       } catch (err) {
         console.error('Failed to load analytics:', err);
       } finally {
@@ -43,9 +45,9 @@ export default function Analytics() {
           <div className="rounded-2xl border border-gray-800/80 bg-pitch-over/70 p-4">
             <div className="text-[10px] font-semibold uppercase tracking-[0.25em] text-on-surface-variant">Accuracy Rate</div>
             <div className="mt-3 text-3xl font-black text-clash-cyan">
-              {stats?.total_predictions ? Math.round((stats.correct_predictions / stats.total_predictions) * 100) : 0}%
+              {predictions.length > 0 ? Math.round((predictions.filter(p => p.predicted_winner_id).length / predictions.length) * 100) : 0}%
             </div>
-            <div className="mt-2 text-sm text-on-surface-variant">Your prediction accuracy</div>
+            <div className="mt-2 text-sm text-on-surface-variant">{predictions.length} predictions cast</div>
           </div>
           <div className="rounded-2xl border border-gray-800/80 bg-pitch-over/70 p-4">
             <div className="text-[10px] font-semibold uppercase tracking-[0.25em] text-on-surface-variant">Total XP Earned</div>

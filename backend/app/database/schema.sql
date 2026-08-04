@@ -7,7 +7,8 @@ CREATE TABLE IF NOT EXISTS users (
     current_level INTEGER DEFAULT 1,
     total_xp INTEGER DEFAULT 0,
     prediction_streak INTEGER DEFAULT 0,
-    role TEXT DEFAULT 'member'
+    role TEXT DEFAULT 'member',
+    is_banned INTEGER DEFAULT 0
 );
 
 CREATE TABLE IF NOT EXISTS teams (

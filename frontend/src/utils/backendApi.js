@@ -98,8 +98,14 @@ export const api = {
   },
   reviews: {
     list: () => request('/api/reviews'),
-    create: (data) => request('/api/reviews', { method: 'POST', body: JSON.stringify(data) }),
-    update: (id, data) => request(`/api/reviews/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
+    create: async (data) => {
+      const res = await request('/api/reviews', { method: 'POST', body: JSON.stringify(data) });
+      return res.review || res;
+    },
+    update: async (id, data) => {
+      const res = await request(`/api/reviews/${id}`, { method: 'PATCH', body: JSON.stringify(data) });
+      return res.review || res;
+    },
     delete: (id) => request(`/api/reviews/${id}`, { method: 'DELETE' }),
   },
   history: {
@@ -110,7 +116,7 @@ export const api = {
   admin: {
     getStats: () => request('/api/admin/stats'),
     listUsers: (page = 1, per_page = 10) => {
-      return request(`/api/users?page=${page}&per_page=${per_page}`);
+      return request(`/api/admin/users?page=${page}&per_page=${per_page}`);
     },
     updateUserRole: (id) => request(`/api/admin/users/${id}/role`, { method: 'PATCH' }),
     deleteUser: (id) => request(`/api/admin/users/${id}`, { method: 'DELETE' }),

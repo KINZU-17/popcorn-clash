@@ -52,7 +52,7 @@ const Profile = ({ movies = [], collections = [], history = [] }) => {
       setReviewsLoading(true);
       try {
         const fetchedReviews = await api.reviews.list();
-        setReviews(fetchedReviews || []);
+        setReviews(fetchedReviews.reviews || []);
       } catch (error) {
         console.error("Failed to fetch reviews:", error);
       } finally {
@@ -174,7 +174,7 @@ const Profile = ({ movies = [], collections = [], history = [] }) => {
           <div className="flex items-center justify-center md:justify-start gap-4 mt-3">
             <span className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-primary/10 border border-primary/20 text-xs font-mono font-bold text-primary-light">
               <SparklesIcon className="h-4 w-4" />
-              <span>Level {user.level || '1 Cinephile'}</span>
+              <span>Level {user.current_level || 1}</span>
             </span>
             <span className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-orange-500/10 border border-orange-500/20 text-xs font-mono font-bold text-orange-400">
               <FireIcon className="h-4 w-4" />

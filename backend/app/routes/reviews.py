@@ -11,7 +11,8 @@ review_schema = ReviewSchema()
 
 class ReviewListResource(Resource):
     def get(self):
-        reviews = get_all_reviews()
+        result = get_all_reviews()
+        reviews = result["reviews"] if isinstance(result, dict) else result
         return {"reviews": [review_schema.dump(r) for r in reviews]}
 
     @login_required

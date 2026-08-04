@@ -1,9 +1,9 @@
 import os
 import json
-from flask import Blueprint, jsonify, g
+from flask import Blueprint, g
 from flask_restful import Resource, Api, reqparse
 from app.database.connection import get_cursor
-from app.utils.auth import super_admin_required
+from app.utils.auth import admin_required, get_admin_user_count, get_banned_user_count
 from app.utils.logger import logger
 from app.database.queries import (
     get_stats,
@@ -21,15 +21,17 @@ api = Api(admin_bp)
 
 
 class AdminStatsResource(Resource):
-    @super_admin_required
+    @admin_required
     def get(self):
         logger.info("admin.stats.get", admin_user_id=g.user.get('id'), admin_email=g.user.get('email'))
         stats = get_stats()
-        return jsonify(stats=stats)
+        stats['admin_users'] = get_admin_user_count()
+        stats['banned_users'] = get_banned_user_count()
+        return {"stats": stats}
 
 
 class AdminUserRoleResource(Resource):
-    @super_admin_required
+    @admin_required
     def patch(self, user_id):
         # In a real app, you'd get the new role from the request body
         # For this implementation, we'll just toggle between 'admin' and 'member'
@@ -47,11 +49,11 @@ class AdminUserRoleResource(Resource):
             target_user_id=user_id,
             new_role=new_role
         )
-        return jsonify(message=f"User role updated to {new_role}", new_role=new_role)
+        return {"message": f"User role updated to {new_role}", "new_role": new_role}
 
 
 class AdminUserResource(Resource):
-    @super_admin_required
+    @admin_required
     def delete(self, user_id):
         delete_user(user_id)
         logger.info(
@@ -60,11 +62,11 @@ class AdminUserResource(Resource):
             admin_email=g.user.get('email'),
             deleted_user_id=user_id
         )
-        return jsonify(message="User and all their associated data have been deleted.")
+        return {"message": "User and all their associated data have been deleted."}
 
 
 class AdminReviewResource(Resource):
-    @super_admin_required
+    @admin_required
     def delete(self, review_id):
         db_delete_review(review_id)
         logger.info(
@@ -73,11 +75,11 @@ class AdminReviewResource(Resource):
             admin_email=g.user.get('email'),
             deleted_review_id=review_id
         )
-        return jsonify(message="Review deleted successfully.")
+        return {"message": "Review deleted successfully."}
 
 
 class AdminMovieResource(Resource):
-    @super_admin_required
+    @admin_required
     def delete(self, movie_id):
         db_delete_movie(movie_id)
         logger.info(
@@ -86,11 +88,11 @@ class AdminMovieResource(Resource):
             admin_email=g.user.get('email'),
             deleted_movie_id=movie_id
         )
-        return jsonify(message="Movie deleted successfully.")
+        return {"message": "Movie deleted successfully."}
 
 
 class AdminUserBanResource(Resource):
-    @super_admin_required
+    @admin_required
     def patch(self, user_id):
         parser = reqparse.RequestParser()
         parser.add_argument("is_banned", type=bool, required=True, help="is_banned is required")
@@ -110,11 +112,11 @@ class AdminUserBanResource(Resource):
             target_user_id=user_id,
             new_ban_status=args['is_banned']
         )
-        return jsonify(message=f"User has been {status}.")
+        return {"message": f"User has been {status}."}
 
 
 class AdminMovieListResource(Resource):
-    @super_admin_required
+    @admin_required
     def get(self):
         parser = reqparse.RequestParser()
         parser.add_argument("page", type=int, default=1, location="args")
@@ -124,7 +126,7 @@ class AdminMovieListResource(Resource):
 
 
 class AdminReviewListResource(Resource):
-    @super_admin_required
+    @admin_required
     def get(self):
         parser = reqparse.RequestParser()
         parser.add_argument("page", type=int, default=1, location="args")
@@ -134,7 +136,7 @@ class AdminReviewListResource(Resource):
 
 
 class AdminFixtureListResource(Resource):
-    @super_admin_required
+    @admin_required
     def get(self):
         parser = reqparse.RequestParser()
         parser.add_argument("page", type=int, default=1, location="args")
@@ -144,9 +146,9 @@ class AdminFixtureListResource(Resource):
 
 
 class AdminLogResource(Resource):
-    @super_admin_required
+    @admin_required
     def get(self):
-        log_file_path = os.environ.get("LOG_FILE_PATH", os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "app.log"))
+        log_file_path = os.environ.get("LOG_FILE_PATH", os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), "app.log"))
         logs = []
         try:
             with open(log_file_path, 'r', encoding='utf-8') as f:
@@ -158,7 +160,7 @@ class AdminLogResource(Resource):
                         logs.append(json.loads(line))
                     except json.JSONDecodeError:
                         continue # Ignore malformed lines
-            return jsonify(logs=logs)
+            return {"logs": logs}
         except FileNotFoundError:
             return {"error": "Log file not found."}, 404
         except Exception as e:
@@ -166,7 +168,18 @@ class AdminLogResource(Resource):
             return {"error": "Failed to read log file."}, 500
 
 
+class AdminUserListResource(Resource):
+    @admin_required
+    def get(self):
+        parser = reqparse.RequestParser()
+        parser.add_argument("page", type=int, default=1, location="args")
+        parser.add_argument("per_page", type=int, default=10, location="args")
+        args = parser.parse_args()
+        return queries.get_all_users(page=args['page'], per_page=args['per_page'], paginated=True)
+
+
 api.add_resource(AdminStatsResource, "/stats")
+api.add_resource(AdminUserListResource, "/users")
 api.add_resource(AdminUserRoleResource, "/users/<int:user_id>/role")
 api.add_resource(AdminUserResource, "/users/<int:user_id>")
 api.add_resource(AdminUserBanResource, "/users/<int:user_id>/ban")

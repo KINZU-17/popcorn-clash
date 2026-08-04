@@ -12,6 +12,14 @@ def _to_dict(obj) -> dict:
     return {c.name: getattr(obj, c.name) for c in obj.__table__.columns}
 
 
+def get_admin_user_count() -> int:
+    return db.session.query(func.count(User.id)).filter(User.role == 'admin').scalar()
+
+
+def get_banned_user_count() -> int:
+    return db.session.query(func.count(User.id)).filter(User.is_banned == 1).scalar()
+
+
 def get_user_by_email(email: str) -> Optional[dict]:
     user = User.query.filter_by(email=email).first()
     return _to_dict(user) if user else None
@@ -379,21 +387,19 @@ def delete_watch_history_entry(entry_id: int, user_id: int) -> None:
 # ── Admin ──
 
 def get_all_users(page: int = 1, per_page: int = 10, paginated: bool = False) -> list[dict] | dict:
-    query = User.query.order_by(User.id.asc())
-    if paginated:
-        pagination = query.paginate(page=page, per_page=per_page, error_out=False)
-        users = [{c.name: getattr(u, c.name) for c in u.__table__.columns} for u in pagination.items]
-        return {
-            "users": users,
-            "pagination": {
-                "total": pagination.total,
-                "page": pagination.page,
-                "per_page": pagination.per_page,
-                "pages": pagination.pages
+    with get_cursor() as cur:
+        if paginated:
+            offset = (page - 1) * per_page
+            cur.execute("SELECT COUNT(*) as count FROM users")
+            total = cur.fetchone()['count']
+            cur.execute("SELECT id, username, email, favorite_club, current_level, total_xp, prediction_streak, role, is_banned FROM users ORDER BY id ASC LIMIT ? OFFSET ?", (per_page, offset))
+            users = [dict(row) for row in cur.fetchall()]
+            return {
+                "users": users,
+                "pagination": {"total": total, "page": page, "per_page": per_page, "pages": (total + per_page - 1) // per_page}
             }
-        }
-    users = [{c.name: getattr(u, c.name) for c in u.__table__.columns} for u in query.all()]
-    return {"users": users}
+        cur.execute("SELECT id, username, email, favorite_club, current_level, total_xp, prediction_streak, role, is_banned FROM users ORDER BY id ASC")
+        return {"users": [dict(row) for row in cur.fetchall()]}
 
 
 def update_user_role(user_id: int, role: str) -> None:
@@ -425,4 +431,6 @@ def get_stats() -> dict:
         "total_reviews": db.session.query(func.count(Review.id)).scalar(),
         "total_fixtures": db.session.query(func.count(Fixture.id)).scalar(),
         "total_watch_history": db.session.query(func.count(WatchHistory.id)).scalar(),
+        "admin_users": db.session.query(func.count(User.id)).filter(User.role == 'admin').scalar(),
+        "banned_users": db.session.query(func.count(User.id)).filter(User.is_banned == 1).scalar(),
     }
