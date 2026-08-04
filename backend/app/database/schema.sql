@@ -26,7 +26,8 @@ CREATE TABLE IF NOT EXISTS fixtures (
     match_date TEXT NOT NULL,
     status TEXT DEFAULT 'SCHEDULED',
     FOREIGN KEY (team_home_id) REFERENCES teams(id),
-    FOREIGN KEY (team_away_id) REFERENCES teams(id)
+    FOREIGN KEY (team_away_id) REFERENCES teams(id),
+    UNIQUE(team_home_id, team_away_id, match_date)
 );
 
 CREATE TABLE IF NOT EXISTS vote_predictions (
@@ -63,7 +64,8 @@ CREATE TABLE IF NOT EXISTS reviews (
     text TEXT NOT NULL,
     poster_url TEXT,
     created_at TEXT DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (user_id) REFERENCES users(id)
+    FOREIGN KEY (user_id) REFERENCES users(id),
+    UNIQUE(user_id, movie_title)
 );
 
 CREATE TABLE IF NOT EXISTS user_movie_statuses (

@@ -1,21 +1,25 @@
 from datetime import datetime
 from typing import Optional
-from sqlalchemy import func, or_
+from sqlalchemy import func, or_, case, and_
 from app.extensions import db
-from app.models import ( # This should be app.models, not app.models.models
+from app.models import (
     User, Team, Fixture, VotePrediction, Movie, Review,
     UserMovieStatus, PasswordReset, WatchHistory
 )
 
 
+def _to_dict(obj) -> dict:
+    return {c.name: getattr(obj, c.name) for c in obj.__table__.columns}
+
+
 def get_user_by_email(email: str) -> Optional[dict]:
     user = User.query.filter_by(email=email).first()
-    return user.__dict__ if user else None
+    return _to_dict(user) if user else None
 
 
 def get_user_by_username(username: str) -> Optional[dict]:
     user = User.query.filter_by(username=username).first()
-    return user.__dict__ if user else None
+    return _to_dict(user) if user else None
 
 
 def create_user(username: str, email: str, password_hash: str, favorite_club: str = "") -> int:
@@ -51,7 +55,7 @@ def search_users(query: str = "", current_user_id: int | None = None) -> list[di
 
 def get_user_by_id(user_id: int) -> Optional[dict]:
     user = User.query.get(user_id)
-    return user.__dict__ if user else None
+    return _to_dict(user) if user else None
 
 
 def update_user_profile(user_id: int, **kwargs) -> None:
@@ -63,7 +67,7 @@ def update_user_profile(user_id: int, **kwargs) -> None:
 
 def get_team_by_id(team_id: int) -> Optional[dict]:
     team = Team.query.get(team_id)
-    return team.__dict__ if team else None
+    return _to_dict(team) if team else None
 
 
 def create_team(name: str, league: str, stadium: str = "", rating_score: float = 0.0) -> int:
@@ -75,7 +79,7 @@ def create_team(name: str, league: str, stadium: str = "", rating_score: float =
 
 def get_all_teams() -> list[dict]:
     teams = Team.query.order_by(Team.rating_score.desc()).all()
-    return [t.__dict__ for t in teams]
+    return [_to_dict(t) for t in teams]
 
 
 def get_fixture(fixture_id: int) -> Optional[dict]:
@@ -86,7 +90,7 @@ def get_fixture(fixture_id: int) -> Optional[dict]:
     if not fixture:
         return None
     
-    fixture_dict = fixture.__dict__
+    fixture_dict = _to_dict(fixture)
     fixture_dict['home_name'] = fixture.home_team.name
     fixture_dict['home_code'] = fixture.home_team.code
     fixture_dict['league'] = fixture.home_team.league
@@ -96,20 +100,44 @@ def get_fixture(fixture_id: int) -> Optional[dict]:
     return fixture_dict
 
 
-def get_all_fixtures() -> list[dict]:
-    fixtures = Fixture.query.options(
+def get_all_fixtures(page: int = 1, per_page: int = 10, paginated: bool = False) -> list[dict] | dict:
+    query = Fixture.query.options(
         db.joinedload(Fixture.home_team),
         db.joinedload(Fixture.away_team)
-    ).order_by(Fixture.match_date.asc()).all()
+    ).order_by(Fixture.match_date.asc())
 
+    if paginated:
+        pagination = query.paginate(page=page, per_page=per_page, error_out=False)
+        results = []
+        for f in pagination.items:
+            f_dict = {c.name: getattr(f, c.name) for c in f.__table__.columns}
+            f_dict['home_name'] = f.home_team.name
+            f_dict['home_code'] = f.home_team.code
+            f_dict['home_league'] = f.home_team.league
+            f_dict['away_name'] = f.away_team.name
+            f_dict['away_code'] = f.away_team.code
+            f_dict['away_league'] = f.away_team.league
+            results.append(f_dict)
+        return {
+            "fixtures": results,
+            "pagination": {
+                "total": pagination.total,
+                "page": pagination.page,
+                "per_page": pagination.per_page,
+                "pages": pagination.pages
+            }
+        }
+
+    fixtures = query.all()
     results = []
     for f in fixtures:
         f_dict = {c.name: getattr(f, c.name) for c in f.__table__.columns}
         f_dict['home_name'] = f.home_team.name
         f_dict['home_code'] = f.home_team.code
-        f_dict['league'] = f.home_team.league
+        f_dict['home_league'] = f.home_team.league
         f_dict['away_name'] = f.away_team.name
         f_dict['away_code'] = f.away_team.code
+        f_dict['away_league'] = f.away_team.league
         results.append(f_dict)
     return results
 
@@ -212,7 +240,7 @@ def get_all_movies(limit: int = 50, page: int = 1, per_page: int = 10, paginated
     if paginated:
         pagination = query.paginate(page=page, per_page=per_page, error_out=False)
         return {
-            "movies": [m.__dict__ for m in pagination.items],
+            "movies": [_to_dict(m) for m in pagination.items],
             "pagination": {
                 "total": pagination.total,
                 "page": pagination.page,
@@ -224,13 +252,13 @@ def get_all_movies(limit: int = 50, page: int = 1, per_page: int = 10, paginated
     if limit > 0:
         query = query.limit(limit)
     
-    movies = [m.__dict__ for m in query.all()]
+    movies = [_to_dict(m) for m in query.all()]
     return {"movies": movies}
 
 
 def get_movie_by_id(movie_id: int) -> dict | None:
     movie = Movie.query.get(movie_id)
-    return movie.__dict__ if movie else None
+    return _to_dict(movie) if movie else None
 
 
 def create_review(user_id: int, movie_title: str, rating: int, text: str, poster_url: str = "") -> int:
@@ -245,7 +273,7 @@ def get_all_reviews(page: int = 1, per_page: int = 10, paginated: bool = False) 
     if paginated:
         pagination = query.paginate(page=page, per_page=per_page, error_out=False)
         return {
-            "reviews": [r.__dict__ for r in pagination.items],
+            "reviews": [_to_dict(r) for r in pagination.items],
             "pagination": {
                 "total": pagination.total,
                 "page": pagination.page,
@@ -253,7 +281,7 @@ def get_all_reviews(page: int = 1, per_page: int = 10, paginated: bool = False) 
                 "pages": pagination.pages
             }
         }
-    reviews = [r.__dict__ for r in query.all()]
+    reviews = [_to_dict(r) for r in query.all()]
     return {"reviews": reviews}
 
 
@@ -338,7 +366,7 @@ def create_watch_history_entry(user_id: int, movie_id: int | None, title: str, p
 
 def get_user_watch_history(user_id: int, limit: int = 50) -> list[dict]:
     history = WatchHistory.query.filter_by(user_id=user_id).order_by(WatchHistory.watched_at.desc()).limit(limit).all()
-    return [h.__dict__ for h in history]
+    return [_to_dict(h) for h in history]
 
 
 def delete_watch_history_entry(entry_id: int, user_id: int) -> None:
@@ -349,6 +377,24 @@ def delete_watch_history_entry(entry_id: int, user_id: int) -> None:
 
 
 # ── Admin ──
+
+def get_all_users(page: int = 1, per_page: int = 10, paginated: bool = False) -> list[dict] | dict:
+    query = User.query.order_by(User.id.asc())
+    if paginated:
+        pagination = query.paginate(page=page, per_page=per_page, error_out=False)
+        users = [{c.name: getattr(u, c.name) for c in u.__table__.columns} for u in pagination.items]
+        return {
+            "users": users,
+            "pagination": {
+                "total": pagination.total,
+                "page": pagination.page,
+                "per_page": pagination.per_page,
+                "pages": pagination.pages
+            }
+        }
+    users = [{c.name: getattr(u, c.name) for c in u.__table__.columns} for u in query.all()]
+    return {"users": users}
+
 
 def update_user_role(user_id: int, role: str) -> None:
     user = User.query.get(user_id)

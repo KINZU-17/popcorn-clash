@@ -2,7 +2,7 @@ from flask import Blueprint, jsonify
 from flask_restful import Resource, Api
 from app.database.queries import get_all_teams, get_leaderboard
 
-teams_bp = Blueprint("teams", __name__, url_prefix="/api/teams/")
+teams_bp = Blueprint("teams", __name__, url_prefix="/api/teams")
 api = Api(teams_bp)
 
 

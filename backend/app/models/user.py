@@ -13,6 +13,7 @@ class User(db.Model):
     total_xp = db.Column(db.Integer, default=0)
     prediction_streak = db.Column(db.Integer, default=0)
     role = db.Column(db.String(20), default="member")
+    is_banned = db.Column(db.Integer, default=0)
 
     predictions = db.relationship("Prediction", backref="user", lazy=True)
     reviews = db.relationship("Review", backref="user", lazy=True)

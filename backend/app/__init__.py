@@ -10,7 +10,8 @@ from flask import Flask, jsonify, request, g
 from flask_cors import CORS
 from flask_migrate import Migrate
 from app.extensions import db
-from app. import models # Import models to register them with SQLAlchemy
+from app import models # Import models to register them with SQLAlchemy
+from app.database.connection import init_db, seed_database
 from app.utils.auth import _current_user_id
 from app.routes.auth import _hash_password
 from app.utils.logger import logger
@@ -50,6 +51,8 @@ def create_app():
         return jsonify({"error": "Internal server error"}), 500
 
     with app.app_context():
+        init_db()
+        seed_database()
         # Seed the super admin user if it doesn't exist
         from app.database.queries import get_user_by_email, create_user, update_user_role
         admin_email = "admin@popcornclash@gmail.com"
