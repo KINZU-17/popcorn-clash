@@ -20,7 +20,7 @@ class MovieListResource(Resource):
         parser.add_argument("limit", type=int, default=50)
         parser.add_argument("q", type=str, default="")
         args = parser.parse_args()
-        result = get_all_movies(limit=args["limit"])
+        result = get_all_movies(limit=args["limit"], query=args["q"])
         movies = result["movies"] if isinstance(result, dict) else result
         return jsonify(movies=movies)
 

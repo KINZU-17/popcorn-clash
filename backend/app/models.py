@@ -66,7 +66,7 @@ class Movie(db.Model):
     genre = db.Column(db.String(100))
     year = db.Column(db.Integer)
     rating = db.Column(db.Float)
-    duration = db.Column(db.Integer) # in minutes
+    duration = db.Column(db.String(20)) # e.g. "2h 22m"
 
     reviews = db.relationship('Review', backref='movie', lazy=True) # Don't cascade delete reviews if movie is deleted
     statuses = db.relationship('UserMovieStatus', backref='movie', lazy=True, cascade="all, delete-orphan")

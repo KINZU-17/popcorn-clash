@@ -9,7 +9,7 @@ load_dotenv(basedir / '.env')
 
 class Config:
     SECRET_KEY = os.environ.get("SECRET_KEY", "dev-secret-key-change-in-production")
-    DATABASE_PATH = os.environ.get("POPCORNCLASH_DB_PATH", str(Path(__file__).parent / "popcornclash.db"))
+    DATABASE_PATH = os.environ.get("POPCORNCLASH_DB_PATH", str(Path(__file__).parent / "app" / "database" / "popcornclash.db"))
     DATABASE_URL = os.environ.get("DATABASE_URL", f"sqlite:///{DATABASE_PATH}")
     BACKEND_URL = os.environ.get("VITE_BACKEND_URL", "http://localhost:5000")
     TMDB_API_KEY = os.environ.get("TMDB_API_KEY", "")

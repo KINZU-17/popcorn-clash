@@ -15,7 +15,6 @@ from app.database.queries import (
     verify_and_use_reset_code,
     update_user_password,
 )
-from app.database.connection import get_cursor
 from app.utils.auth import create_token, bcrypt
 from app.utils.schemas import UserSchema
 from app.utils.decorators import rate_limit

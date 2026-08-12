@@ -2,8 +2,7 @@ import os
 import json
 from flask import Blueprint, g
 from flask_restful import Resource, Api, reqparse
-from app.database.connection import get_cursor
-from app.utils.auth import admin_required, get_admin_user_count, get_banned_user_count
+from app.utils.auth import admin_required
 from app.utils.logger import logger
 from app.database.queries import (
     get_stats,
@@ -12,6 +11,9 @@ from app.database.queries import (
     delete_review as db_delete_review,
     delete_movie as db_delete_movie,
     update_user_ban_status,
+    search_users_admin,
+    get_recent_activity,
+    delete_expired_password_resets,
 )
 
 from app.database import queries
@@ -25,8 +27,6 @@ class AdminStatsResource(Resource):
     def get(self):
         logger.info("admin.stats.get", admin_user_id=g.user.get('id'), admin_email=g.user.get('email'))
         stats = get_stats()
-        stats['admin_users'] = get_admin_user_count()
-        stats['banned_users'] = get_banned_user_count()
         return {"stats": stats}
 
 
@@ -178,6 +178,47 @@ class AdminUserListResource(Resource):
         return queries.get_all_users(page=args['page'], per_page=args['per_page'], paginated=True)
 
 
+class AdminUserSearchResource(Resource):
+    @admin_required
+    def get(self):
+        parser = reqparse.RequestParser()
+        parser.add_argument("q", type=str, default="", location="args")
+        parser.add_argument("page", type=int, default=1, location="args")
+        parser.add_argument("per_page", type=int, default=10, location="args")
+        args = parser.parse_args()
+        logger.info(
+            "admin.user.search.get",
+            admin_user_id=g.user.get('id'),
+            admin_email=g.user.get('email'),
+            query=args['q']
+        )
+        return search_users_admin(query=args['q'], page=args['page'], per_page=args['per_page'])
+
+
+class AdminRecentActivityResource(Resource):
+    @admin_required
+    def get(self):
+        logger.info(
+            "admin.recent.get",
+            admin_user_id=g.user.get('id'),
+            admin_email=g.user.get('email')
+        )
+        return get_recent_activity()
+
+
+class AdminPasswordResetCleanupResource(Resource):
+    @admin_required
+    def delete(self):
+        count = delete_expired_password_resets()
+        logger.info(
+            "admin.password_resets.cleanup",
+            admin_user_id=g.user.get('id'),
+            admin_email=g.user.get('email'),
+            deleted_count=count
+        )
+        return {"message": f"Deleted {count} expired password reset(s).", "deleted_count": count}
+
+
 api.add_resource(AdminStatsResource, "/stats")
 api.add_resource(AdminUserListResource, "/users")
 api.add_resource(AdminUserRoleResource, "/users/<int:user_id>/role")
@@ -190,3 +231,6 @@ api.add_resource(AdminMovieListResource, "/movies")
 api.add_resource(AdminReviewListResource, "/reviews")
 api.add_resource(AdminFixtureListResource, "/fixtures")
 api.add_resource(AdminLogResource, "/logs")
+api.add_resource(AdminRecentActivityResource, "/activity/recent")
+api.add_resource(AdminUserSearchResource, "/users/search")
+api.add_resource(AdminPasswordResetCleanupResource, "/password-resets/cleanup")

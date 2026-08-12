@@ -224,7 +224,7 @@ A gamified sports entertainment and movie discovery web app built with a React f
 - `PATCH /api/reviews/<id>` - Update review
 - `DELETE /api/reviews/<id>` - Delete review
 
-### Admin (Not registered in app.py)
+### Admin (Registered in app/__init__.py)
 - `GET /api/admin/stats` - Get application stats
 - `PATCH /api/admin/users/<int:user_id>/role` - Update user role
 - `DELETE /api/admin/users/<int:user_id>` - Delete a user
@@ -256,7 +256,7 @@ cp resources/.env.example .env
 # Edit .env with your values
 
 # If using Flask-Migrate (Alembic), initialize and run migrations
-# export FLASK_APP=app.py
+  # export FLASK_APP=run.py
 # flask db init  # (Only first time)
 # flask db migrate -m "Initial migration"
 # flask db upgrade

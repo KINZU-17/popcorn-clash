@@ -45,10 +45,14 @@ export function useMovies() {
   }, [refresh]);
 
   const deleteMovie = useCallback(async (id) => {
-    const localId = `movie-${id}`;
+    const localId = typeof id === 'string' && id.startsWith('movie-') ? id : `movie-${id}`;
     const numericId = typeof id === 'number' ? id : Number(String(id).replace('movie-', ''));
-    await api.movies.remove(numericId);
-    setMovies(prev => prev.filter(m => m.id !== localId));
+    try {
+      await api.movies.remove(numericId);
+      setMovies(prev => prev.filter(m => m.id !== localId));
+    } catch (err) {
+      console.error('Failed to delete movie:', err);
+    }
   }, []);
 
   // Persist a UI-only patch (status, isFavorite) for a single movie.

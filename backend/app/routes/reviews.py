@@ -1,6 +1,7 @@
 from flask import Blueprint, request
 from flask_restful import Resource, Api
 from app.database.queries import create_review, get_all_reviews, update_review, delete_review
+from app.database.connection import get_cursor
 from app.utils.schemas import ReviewSchema
 from app.utils.auth import login_required
 
@@ -46,14 +47,31 @@ class ReviewListResource(Resource):
         }, 201
 
 
-
 class ReviewResource(Resource):
+    @login_required
     def patch(self, review_id):
         data = request.get_json(silent=True) or {}
-        update_review(review_id, **data)
-        return {"review": {"id": review_id, **data}}
+        user_id = request.user_id
+        with get_cursor() as cur:
+            cur.execute("SELECT user_id FROM reviews WHERE id = ?", (review_id,))
+            row = cur.fetchone()
+        if not row or row['user_id'] != user_id:
+            return {"error": "Review not found or you do not have permission to edit it"}, 404
+        allowed_fields = {"rating", "text", "poster_url"}
+        updates = {k: v for k, v in data.items() if k in allowed_fields}
+        if not updates:
+            return {"error": "No valid fields to update"}, 400
+        update_review(review_id, **updates)
+        return {"review": {"id": review_id, **updates}}
 
+    @login_required
     def delete(self, review_id):
+        user_id = request.user_id
+        with get_cursor() as cur:
+            cur.execute("SELECT user_id FROM reviews WHERE id = ?", (review_id,))
+            row = cur.fetchone()
+        if not row or row['user_id'] != user_id:
+            return {"error": "Review not found or you do not have permission to delete it"}, 404
         delete_review(review_id)
         return {"deleted": True}
 

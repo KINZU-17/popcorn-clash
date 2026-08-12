@@ -1,4 +1,4 @@
-import { Compass, Library, BarChart2, Tv, MessageSquare, LogOut, X, Home, Trophy, BarChart, User, PlusSquare, Bell, Shield, Sparkles } from 'lucide-react';
+import { Compass, Library, BarChart2, Tv, MessageSquare, LogOut, X, Home, Trophy, BarChart, User, PlusSquare, Bell, Shield, Sparkles, ChevronRight } from 'lucide-react';
 
 export default function Sidebar({
   activeTab,
@@ -28,7 +28,6 @@ export default function Sidebar({
     { id: 'home', label: 'Match Feed', icon: Home },
     { id: 'leaderboard', label: 'Leaderboard', icon: Trophy },
     { id: 'analytics', label: 'Analytics', icon: BarChart },
-    { id: 'profile', label: 'Profile', icon: User },
     ...(userRole === 'admin' ? [{ id: 'admin', label: 'Admin Panel', icon: Shield }] : []),
   ];
 
@@ -44,7 +43,7 @@ export default function Sidebar({
         />
       )}
 
-      <nav className={`fixed left-0 top-0 h-full w-[260px] bg-[#0c0a09] border-r border-surface-container-high z-50 flex flex-col py-10 px-6 justify-between shrink-0 transition-transform duration-300 md:translate-x-0 ${
+      <nav className={`fixed left-0 top-0 h-full w-65 bg-[#0c0a09] border-r border-surface-container-high z-50 flex flex-col py-10 px-6 justify-between shrink-0 transition-transform duration-300 md:translate-x-0 ${
         isOpen ? 'translate-x-0' : '-translate-x-full'
       }`}>
         <div className="space-y-6 overflow-y-auto">
@@ -142,16 +141,24 @@ export default function Sidebar({
         </div>
 
         <div className="pt-6 border-t border-surface-container-high space-y-4">
-          {/* User Details */}
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-none border border-surface-container-high bg-surface-container-low flex items-center justify-center font-serif italic text-white text-sm">
+          {/* User Details / Profile */}
+          <button
+            onClick={() => handlePage('profile')}
+            className={`w-full flex items-center gap-3 p-3 rounded-xl transition-all duration-200 text-left border ${
+              activePage === 'profile'
+                ? 'border-warm-gold/40 bg-warm-gold/10 text-white'
+                : 'border-surface-container-high bg-surface-container-low text-on-surface-variant hover:text-white hover:border-surface-container-high'
+            }`}
+          >
+            <div className="w-10 h-10 rounded-none border border-surface-container-high bg-surface-container-low flex items-center justify-center font-serif italic text-white text-sm shrink-0">
               {username.charAt(0).toUpperCase()}
             </div>
-            <div className="min-w-0">
+            <div className="min-w-0 flex-1">
               <p className="text-xs font-bold uppercase tracking-wider text-white truncate">{username}</p>
               <p className="text-[9px] text-on-surface-variant uppercase tracking-[0.15em] truncate">{userLevel}</p>
             </div>
-          </div>
+            <ChevronRight className={`w-4 h-4 shrink-0 transition-colors ${activePage === 'profile' ? 'text-warm-gold' : 'text-surface-container-high'}`} />
+          </button>
 
           <button
             onClick={() => { onOpenCineJam(); onClose(); }}

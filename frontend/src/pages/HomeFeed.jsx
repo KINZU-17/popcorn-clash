@@ -106,58 +106,64 @@ export default function HomeFeed({ searchQuery = '', onMatchClick }) {
           </div>
         ) : (
           filteredFixtures.map((match) => (
-            <div key={match.id} className="flip-card h-[180px]">
+            <div key={match.id} className="flip-card h-[200px]">
               <div className={`flip-card-inner ${flippedCardId === match.id ? 'is-flipped' : ''}`}>
                 {/* Front of Card */}
-                <div className="flip-card-front flex flex-col justify-between rounded-3xl border border-gray-800/70 bg-pitch-card p-5 text-left shadow-card-glow transition-all duration-200 hover:border-gray-700">
-                  <div className="flex items-center justify-between text-xs font-semibold uppercase tracking-[0.25em] text-on-surface-variant">
-                    <span>{match.league}</span>
-                    <span className={match.status === 'LIVE' ? 'text-emerald-400' : 'text-popcorn-gold'}>{match.status === 'LIVE' ? `${match.matchDate}` : match.matchDate}</span>
+                <div className="flip-card-front flex flex-col justify-between rounded-3xl border border-gray-800/70 bg-pitch-card p-6 text-left shadow-card-glow transition-all duration-300 hover:border-warm-gold/30 hover:shadow-[0_8px_40px_-12px_rgba(217,119,6,0.15)]">
+                  <div className="flex items-center justify-between text-xs font-semibold uppercase tracking-[0.25em]">
+                    <span className="text-on-surface-variant">{match.league}</span>
+                    <span className={`px-3 py-1 rounded-full border ${
+                      match.status === 'LIVE'
+                        ? 'text-emerald-400 border-emerald-500/30 bg-emerald-500/10'
+                        : 'text-popcorn-gold border-warm-gold/20 bg-warm-gold/5'
+                    }`}>
+                      {match.status === 'LIVE' ? `${match.matchDate}` : match.matchDate}
+                    </span>
                   </div>
-                  <div className="mt-5 flex items-center justify-between gap-3">
+                  <div className="mt-6 flex items-center justify-between gap-4">
                     <div className="flex-1">
-                      <div className="inline-flex rounded-full bg-pitch-over px-3 py-1 text-[10px] font-black uppercase tracking-[0.25em] text-clash-cyan">{match.homeTeam.code}</div>
-                      <div className="mt-3 text-lg font-black text-white">{match.homeTeam.name}</div>
+                      <div className="inline-flex rounded-full bg-pitch-over px-3 py-1.5 text-[10px] font-black uppercase tracking-[0.25em] text-clash-cyan border border-white/5">{match.homeTeam.code}</div>
+                      <div className="mt-3 text-base font-black text-white tracking-tight">{match.homeTeam.name}</div>
                     </div>
                     <div className="text-center">
                       {match.status === 'LIVE' ? (
                         <div className="text-2xl font-black text-white font-mono animate-pulse">{match.homeTeam.score} - {match.awayTeam.score}</div>
                       ) : (
-                        <div className="rounded-full border border-gray-800 bg-pitch-over px-3 py-2 text-sm font-black text-popcorn-gold">VS</div>
+                        <div className="rounded-full border border-warm-gold/20 bg-warm-gold/5 px-4 py-2 text-sm font-black text-warm-gold">VS</div>
                       )}
                     </div>
                     <div className="flex-1 text-right">
-                      <div className="inline-flex rounded-full bg-pitch-over px-3 py-1 text-[10px] font-black uppercase tracking-[0.25em] text-clash-red">{match.awayTeam.code}</div>
-                      <div className="mt-3 text-lg font-black text-white">{match.awayTeam.name}</div>
+                      <div className="inline-flex rounded-full bg-pitch-over px-3 py-1.5 text-[10px] font-black uppercase tracking-[0.25em] text-clash-red border border-white/5">{match.awayTeam.code}</div>
+                      <div className="mt-3 text-base font-black text-white tracking-tight">{match.awayTeam.name}</div>
                     </div>
                   </div>
-                  <div className="absolute bottom-3 right-3 flex gap-1">
-                    <button type="button" onClick={() => onMatchClick && onMatchClick(match.id)} className="p-1.5 rounded-full bg-white/5 text-white/40 hover:bg-white/10 hover:text-white transition-colors"><span className="text-[8px] font-bold">PREDICT</span></button>
-                    <button type="button" onClick={() => setFlippedCardId(match.id)} className="p-1.5 rounded-full bg-white/5 text-white/40 hover:bg-white/10 hover:text-white transition-colors"><Info className="w-2.5 h-2.5" /></button>
+                  <div className="absolute bottom-4 right-4 flex gap-2">
+                    <button type="button" onClick={() => onMatchClick && onMatchClick(match.id)} className="px-3 py-1.5 rounded-full bg-warm-gold text-on-primary-container text-[8px] font-bold uppercase tracking-wider hover:bg-warm-gold-light transition-all cursor-pointer shadow-lg">Predict</button>
+                    <button type="button" onClick={() => setFlippedCardId(match.id)} className="p-2 rounded-full bg-surface-container-high/50 text-white/60 hover:text-white hover:bg-surface-container-high transition-all border border-white/5"><Info className="w-3.5 h-3.5" /></button>
                   </div>
                 </div>
                 {/* Back of Card */}
-                <div className="flip-card-back flex flex-col justify-between rounded-3xl border border-gray-700 bg-pitch-over p-5 text-left shadow-card-glow">
+                <div className="flip-card-back flex flex-col justify-between rounded-3xl border border-gray-700 bg-pitch-over p-6 text-left shadow-card-glow">
                   <div>
                     <div className="text-xs font-semibold uppercase tracking-[0.25em] text-on-surface-variant">Match Details</div>
-                    <div className="mt-3 space-y-2 text-xs">
-                      <div className="flex justify-between">
+                    <div className="mt-4 space-y-3 text-xs">
+                      <div className="flex justify-between items-center">
                         <span className="text-white/50">League:</span>
                         <span className="font-bold text-white">{match.league}</span>
                       </div>
-                      <div className="flex justify-between">
+                      <div className="flex justify-between items-center">
                         <span className="text-white/50">Stadium:</span>
                         <span className="font-bold text-white">{match.stadium}</span>
                       </div>
-                      <div className="flex justify-between">
+                      <div className="flex justify-between items-center">
                         <span className="text-white/50">Status:</span>
                         <span className={`font-bold ${match.status === 'LIVE' ? 'text-emerald-400' : 'text-popcorn-gold'}`}>{match.status}</span>
                       </div>
                     </div>
                   </div>
-                  <div className="absolute bottom-3 right-3 flex gap-1">
-                    <button type="button" onClick={() => onMatchClick && onMatchClick(match.id)} className="p-1.5 rounded-full bg-white/5 text-white/40 hover:bg-white/10 hover:text-white transition-colors"><span className="text-[8px] font-bold">PREDICT</span></button>
-                    <button type="button" onClick={() => setFlippedCardId(null)} className="p-1.5 rounded-full bg-white/5 text-white/40 hover:bg-white/10 hover:text-white transition-colors"><X className="w-2.5 h-2.5" /></button>
+                  <div className="absolute bottom-4 right-4 flex gap-2">
+                    <button type="button" onClick={() => onMatchClick && onMatchClick(match.id)} className="px-3 py-1.5 rounded-full bg-warm-gold text-on-primary-container text-[8px] font-bold uppercase tracking-wider hover:bg-warm-gold-light transition-all cursor-pointer shadow-lg">Predict</button>
+                    <button type="button" onClick={() => setFlippedCardId(null)} className="p-2 rounded-full bg-surface-container-high/50 text-white/60 hover:text-white hover:bg-surface-container-high transition-all border border-white/5"><X className="w-3.5 h-3.5" /></button>
                   </div>
                 </div>
               </div>

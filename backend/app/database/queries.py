@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Optional
 from sqlalchemy import func, or_, case, and_
 from app.extensions import db
@@ -6,6 +6,7 @@ from app.models import (
     User, Team, Fixture, VotePrediction, Movie, Review,
     UserMovieStatus, PasswordReset, WatchHistory
 )
+from app.database.connection import get_cursor
 
 
 def _to_dict(obj) -> dict:
@@ -102,9 +103,13 @@ def get_fixture(fixture_id: int) -> Optional[dict]:
     fixture_dict['home_name'] = fixture.home_team.name
     fixture_dict['home_code'] = fixture.home_team.code
     fixture_dict['league'] = fixture.home_team.league
+    fixture_dict['home_stadium'] = fixture.home_team.stadium
     fixture_dict['away_name'] = fixture.away_team.name
     fixture_dict['away_code'] = fixture.away_team.code
     fixture_dict['away_league'] = fixture.away_team.league
+    fixture_dict['away_stadium'] = fixture.away_team.stadium
+    fixture_dict['home_score'] = 0
+    fixture_dict['away_score'] = 0
     return fixture_dict
 
 
@@ -122,9 +127,13 @@ def get_all_fixtures(page: int = 1, per_page: int = 10, paginated: bool = False)
             f_dict['home_name'] = f.home_team.name
             f_dict['home_code'] = f.home_team.code
             f_dict['home_league'] = f.home_team.league
+            f_dict['home_stadium'] = f.home_team.stadium
             f_dict['away_name'] = f.away_team.name
             f_dict['away_code'] = f.away_team.code
             f_dict['away_league'] = f.away_team.league
+            f_dict['away_stadium'] = f.away_team.stadium
+            f_dict['home_score'] = 0
+            f_dict['away_score'] = 0
             results.append(f_dict)
         return {
             "fixtures": results,
@@ -143,9 +152,13 @@ def get_all_fixtures(page: int = 1, per_page: int = 10, paginated: bool = False)
         f_dict['home_name'] = f.home_team.name
         f_dict['home_code'] = f.home_team.code
         f_dict['home_league'] = f.home_team.league
+        f_dict['home_stadium'] = f.home_team.stadium
         f_dict['away_name'] = f.away_team.name
         f_dict['away_code'] = f.away_team.code
         f_dict['away_league'] = f.away_team.league
+        f_dict['away_stadium'] = f.away_team.stadium
+        f_dict['home_score'] = 0
+        f_dict['away_score'] = 0
         results.append(f_dict)
     return results
 
@@ -217,7 +230,7 @@ def get_leaderboard(limit: int = 50) -> list[dict]:
         User.prediction_streak,
         User.favorite_club,
         func.count(VotePrediction.id).label('total_predictions'),
-        func.sum(case((and_(VotePrediction.predicted_winner_id == Fixture.team_home_id, Fixture.status == 'FINISHED'), 1), else_=0)).label('correct_predictions')
+        func.count(case((Fixture.status == 'FINISHED', 1))).label('finished_predictions')
     ).outerjoin(VotePrediction, User.id == VotePrediction.user_id)\
      .outerjoin(Fixture, VotePrediction.fixture_id == Fixture.id)\
      .group_by(User.id)\
@@ -243,10 +256,15 @@ def create_movie(tmdb_id, title, overview, poster_url, genre, year, rating, dura
     return movie.id
 
 
-def get_all_movies(limit: int = 50, page: int = 1, per_page: int = 10, paginated: bool = False) -> list[dict] | dict:
-    query = Movie.query.order_by(Movie.year.desc(), Movie.rating.desc())
+def get_all_movies(limit: int = 50, page: int = 1, per_page: int = 10, paginated: bool = False, query: str = "") -> list[dict] | dict:
+    base_query = Movie.query
+    if query:
+        search_pattern = f"%{query}%"
+        base_query = base_query.filter(or_(Movie.title.like(search_pattern), Movie.genre.like(search_pattern)))
+
+    query_obj = base_query.order_by(Movie.year.desc(), Movie.rating.desc())
     if paginated:
-        pagination = query.paginate(page=page, per_page=per_page, error_out=False)
+        pagination = query_obj.paginate(page=page, per_page=per_page, error_out=False)
         return {
             "movies": [_to_dict(m) for m in pagination.items],
             "pagination": {
@@ -258,9 +276,9 @@ def get_all_movies(limit: int = 50, page: int = 1, per_page: int = 10, paginated
         }
 
     if limit > 0:
-        query = query.limit(limit)
+        query_obj = query_obj.limit(limit)
     
-    movies = [_to_dict(m) for m in query.all()]
+    movies = [_to_dict(m) for m in query_obj.all()]
     return {"movies": movies}
 
 
@@ -348,7 +366,7 @@ def create_password_reset(email: str, code: str, expires_at: str) -> None:
 
 def verify_and_use_reset_code(email: str, code: str) -> bool:
     reset_req = PasswordReset.query.filter_by(email=email, code=code, used=False).order_by(PasswordReset.id.desc()).first()
-    if not reset_req or reset_req.expires_at < datetime.utcnow():
+    if not reset_req or reset_req.expires_at < datetime.now(timezone.utc):
         return False
     
     reset_req.used = True
@@ -394,12 +412,17 @@ def get_all_users(page: int = 1, per_page: int = 10, paginated: bool = False) ->
             total = cur.fetchone()['count']
             cur.execute("SELECT id, username, email, favorite_club, current_level, total_xp, prediction_streak, role, is_banned FROM users ORDER BY id ASC LIMIT ? OFFSET ?", (per_page, offset))
             users = [dict(row) for row in cur.fetchall()]
+            for u in users:
+                u['is_banned'] = bool(u.get('is_banned', 0))
             return {
                 "users": users,
                 "pagination": {"total": total, "page": page, "per_page": per_page, "pages": (total + per_page - 1) // per_page}
             }
         cur.execute("SELECT id, username, email, favorite_club, current_level, total_xp, prediction_streak, role, is_banned FROM users ORDER BY id ASC")
-        return {"users": [dict(row) for row in cur.fetchall()]}
+        users = [dict(row) for row in cur.fetchall()]
+        for u in users:
+            u['is_banned'] = bool(u.get('is_banned', 0))
+        return {"users": users}
 
 
 def update_user_role(user_id: int, role: str) -> None:
@@ -424,13 +447,68 @@ def delete_user(user_id: int) -> None:
         db.session.commit()
 
 
+def search_users_admin(query: str = "", page: int = 1, per_page: int = 20) -> dict:
+    base_query = User.query
+    if query:
+        search_pattern = f"%{query}%"
+        base_query = base_query.filter(
+            or_(User.username.like(search_pattern), User.email.like(search_pattern))
+        )
+    pagination = base_query.order_by(User.id.desc()).paginate(
+        page=page, per_page=per_page, error_out=False
+    )
+    users = []
+    online_user_ids = get_online_user_ids()
+    for u in pagination.items:
+        user_dict = _to_dict(u)
+        user_dict['is_banned'] = bool(user_dict.get('is_banned', 0))
+        user_dict['is_online'] = u.id in online_user_ids
+        users.append(user_dict)
+    return {
+        "users": users,
+        "pagination": {
+            "total": pagination.total,
+            "page": pagination.page,
+            "per_page": pagination.per_page,
+            "pages": pagination.pages,
+        }
+    }
+
+
+def get_recent_activity(limit: int = 5) -> dict:
+    from app.utils.auth import get_online_user_ids
+    recent_users = User.query.order_by(User.id.desc()).limit(limit).all()
+    recent_reviews = Review.query.order_by(Review.id.desc()).limit(limit).all()
+    return {
+        "recent_users": [_to_dict(u) for u in recent_users],
+        "recent_reviews": [_to_dict(r) for r in recent_reviews],
+        "online_user_count": len(get_online_user_ids()),
+    }
+
+
+def delete_expired_password_resets() -> int:
+    now = datetime.now(timezone.utc)
+    expired = PasswordReset.query.filter(
+        (PasswordReset.used == 1) | (PasswordReset.expires_at < now)
+    ).all()
+    count = len(expired)
+    for reset in expired:
+        db.session.delete(reset)
+    db.session.commit()
+    return count
+
+
 def get_stats() -> dict:
+    from app.utils.auth import get_online_user_ids
     return {
         "total_users": db.session.query(func.count(User.id)).scalar(),
+        "total_admin_users": db.session.query(func.count(User.id)).filter(User.role == 'admin').scalar(),
+        "total_banned_users": db.session.query(func.count(User.id)).filter(User.is_banned == 1).scalar(),
+        "total_active_users": len(get_online_user_ids()),
         "total_movies": db.session.query(func.count(Movie.id)).scalar(),
         "total_reviews": db.session.query(func.count(Review.id)).scalar(),
         "total_fixtures": db.session.query(func.count(Fixture.id)).scalar(),
+        "total_predictions": db.session.query(func.count(VotePrediction.id)).scalar(),
+        "total_teams": db.session.query(func.count(Team.id)).scalar(),
         "total_watch_history": db.session.query(func.count(WatchHistory.id)).scalar(),
-        "admin_users": db.session.query(func.count(User.id)).filter(User.role == 'admin').scalar(),
-        "banned_users": db.session.query(func.count(User.id)).filter(User.is_banned == 1).scalar(),
     }

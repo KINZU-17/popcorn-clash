@@ -9,16 +9,13 @@ from app.database.queries import (
     get_stats,
     search_users,
 )
-from app.utils.auth import login_required, admin_required
+from app.utils.auth import login_required, admin_required, _current_user_id
 from app.utils.schemas import ProfileUpdateSchema
 
 from flask_restful import reqparse
 users_bp = Blueprint("users", __name__, url_prefix="/api/users")
 users_api = Api(users_bp)
 profile_update_schema = ProfileUpdateSchema()
-
-
-from app.utils.auth import login_required, admin_required, _current_user_id
 
 class UserSearchResource(Resource):
     def get(self):
@@ -106,6 +103,8 @@ class UserListResource(Resource):
                 LIMIT ? OFFSET ?
             """, (per_page, offset))
             users = [dict(row) for row in cur.fetchall()]
+            for u in users:
+                u['is_banned'] = bool(u.get('is_banned', 0))
 
         return {
             "users": users,

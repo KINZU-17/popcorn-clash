@@ -136,30 +136,30 @@ export default function MyLibraryView({
         {collections.length > 0 && (
           <div>
             <h3 className="text-xs font-bold uppercase tracking-[0.2em] text-white mb-4">Collections</h3>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
 {collections.map(col => (
-                 <div key={col.id} className="group bg-surface-container-low border border-surface-container-high p-4 hover:border-surface-container-high transition-all cursor-pointer relative">
+                 <div key={col.id} className="group relative rounded-2xl border border-surface-container-high bg-surface-container-low p-5 hover:border-warm-gold/40 hover:shadow-[0_8px_40px_-12px_rgba(217,119,6,0.2)] transition-all duration-300 cursor-pointer">
                    <button
                      onClick={(e) => { e.stopPropagation(); onDeleteCollection && onDeleteCollection(col.id); }}
-                     className="absolute top-2 right-2 p-1 bg-red-500/20 text-red-400 hover:bg-red-500/40 rounded opacity-0 group-hover:opacity-100 transition-opacity"
+                     className="absolute top-3 right-3 p-1.5 bg-red-500/20 text-red-400 hover:bg-red-500/40 rounded-lg opacity-0 group-hover:opacity-100 transition-all border border-red-500/20"
                    >
-                     <Trash2 className="w-3 h-3" />
+                     <Trash2 className="w-3.5 h-3.5" />
                    </button>
-                   <div className="w-full aspect-video bg-linear-to-br from-white/10 to-white/5 border border-surface-container-high mb-3 flex items-center justify-center">
-                     <Grid className="w-8 h-8 text-surface-container-high" />
+                   <div className="w-full aspect-video rounded-xl bg-linear-to-br from-warm-gold/10 to-surface-container border border-surface-container-high mb-4 flex items-center justify-center overflow-hidden">
+                     <Grid className="w-10 h-10 text-surface-container-high group-hover:text-warm-gold/60 transition-colors" />
                    </div>
-                   <h4 className="text-xs font-bold uppercase tracking-wider text-white">{col.name}</h4>
-                   <p className="text-[9px] text-on-surface-variant mt-1">{col.movieCount} films</p>
-                   <p className="text-[9px] text-surface-container-high mt-2">{col.updatedTime}</p>
+                   <h4 className="text-sm font-bold uppercase tracking-wider text-white group-hover:text-warm-gold-light transition-colors">{col.name}</h4>
+                   <p className="text-[10px] text-on-surface-variant mt-1.5 font-medium">{col.movieCount} films</p>
+                   <p className="text-[9px] text-surface-container-high mt-2 font-mono">{col.updatedTime}</p>
                  </div>
                ))}
                <button onClick={() => setShowNewCollectionModal(true)}
-                 className="bg-surface-container-low border border-surface-container-high p-4 hover:border-surface-container-high hover:bg-surface-container-low transition-all cursor-pointer flex items-center justify-center gap-2 text-xs font-bold uppercase tracking-wider text-white">
-                 <Plus className="w-4 h-4" /> New Collection
+                 className="rounded-2xl border border-dashed border-surface-container-high p-5 hover:border-warm-gold/40 hover:bg-surface-container-low/50 transition-all duration-300 cursor-pointer flex flex-col items-center justify-center gap-3 text-xs font-bold uppercase tracking-wider text-white min-h-[140px]">
+                 <Plus className="w-6 h-6 text-surface-container-high group-hover:text-warm-gold transition-colors" /> New Collection
                </button>
              </div>
-          </div>
-        )}
+           </div>
+         )}
       </div>
 
       {/* Movies grid */}
@@ -178,61 +178,63 @@ export default function MyLibraryView({
             </button>
           </div>
         ) : (
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-5">
             {filteredMovies.map(movie => (
-              <div key={movie.id} className="group relative bg-surface-container-low border border-surface-container-high p-2 hover:border-surface-container-high transition-all cursor-pointer">
+              <div key={movie.id} className="group relative rounded-2xl border border-surface-container-high bg-surface-container-low overflow-hidden transition-all duration-300 hover:border-warm-gold/40 hover:shadow-[0_8px_40px_-12px_rgba(217,119,6,0.25)] hover:-translate-y-1">
                 <div
-                  className="relative w-full aspect-3/4 bg-linear-to-b from-white/10 to-white/5 border border-surface-container-high mb-2 flex items-center justify-center overflow-hidden"
+                  className="relative w-full aspect-[3/4] bg-surface-container border-b border-surface-container-high overflow-hidden cursor-pointer"
                   onClick={() => onPlayMovie(movie)}
                 >
                   {movie.posterUrl
-                    ? <img src={movie.posterUrl} alt={movie.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
+                    ? <img src={movie.posterUrl} alt={movie.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500 ease-out" />
                     : <Film className="w-12 h-12 text-surface-container-high" />
                   }
 
-                  <div className="absolute inset-0 bg-surface-container-low opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
+                  <div className="absolute inset-0 bg-gradient-to-t from-surface-container-lowest via-surface-container-lowest/40 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center gap-3">
                     <button onClick={(e) => { e.stopPropagation(); onPlayMovie(movie); }}
-                      className="p-2.5 bg-white text-on-primary-container hover:bg-surface-container-high transition-colors">
-                      <Play className="w-4 h-4 fill-current" />
+                      className="p-3 bg-white text-on-primary-container hover:bg-warm-gold hover:text-on-primary-container transition-all cursor-pointer rounded-full shadow-lg">
+                      <Play className="w-5 h-5 fill-current" />
                     </button>
                     <button onClick={(e) => { e.stopPropagation(); onDeleteMovie(movie.id); }}
-                      className="p-2.5 bg-red-500/80 text-white hover:bg-red-600 transition-colors">
+                      className="p-3 bg-red-500/90 text-white hover:bg-red-600 transition-all cursor-pointer rounded-full shadow-lg backdrop-blur-sm">
                       <Trash2 className="w-4 h-4" />
                     </button>
                   </div>
 
                   {movie.progress !== undefined && movie.progress > 0 && (
                     <div className="absolute bottom-0 left-0 right-0 h-1 bg-surface-container-high">
-                      <div className="h-full bg-white transition-all" style={{ width: `${movie.progress}%` }} />
+                      <div className="h-full bg-warm-gold transition-all" style={{ width: `${movie.progress}%` }} />
                     </div>
                   )}
 
                   <button
                     onClick={(e) => { e.stopPropagation(); handleToggleFavorite(movie); }}
-                    className="absolute top-2 right-2 p-1.5 bg-surface-container-lowest/50 hover:bg-surface-container-lowest/70 transition-colors rounded-full"
+                    className="absolute top-2.5 right-2.5 p-2 bg-surface-container-lowest/60 hover:bg-surface-container-lowest/80 backdrop-blur-sm transition-colors rounded-full border border-white/10"
                   >
-                    <Heart className={`w-3.5 h-3.5 transition-colors ${movie.isFavorite ? 'fill-red-500 text-red-500' : 'text-on-surface-variant'}`} />
+                    <Heart className={`w-4 h-4 transition-colors ${movie.isFavorite ? 'fill-red-500 text-red-500' : 'text-white/80'}`} />
                   </button>
 
                   {movie.rating && (
-                    <div className="absolute top-2 left-2 flex items-center gap-0.5 bg-surface-container-low px-1.5 py-0.5 rounded">
-                      <Star className="w-2.5 h-2.5 text-popcorn-gold fill-popcorn-gold" />
-                      <span className="text-[9px] font-mono text-white">{movie.rating}</span>
+                    <div className="absolute top-2.5 left-2.5 flex items-center gap-1 bg-surface-container-lowest/90 backdrop-blur-sm px-2 py-1 rounded-lg border border-white/10 shadow-lg">
+                      <Star className="w-3.5 h-3.5 text-warm-gold fill-warm-gold" />
+                      <span className="text-[10px] font-mono text-white font-bold">{movie.rating}</span>
                     </div>
                   )}
                 </div>
 
-                <h4 className="text-[10px] font-bold uppercase tracking-wider text-white truncate">{movie.title}</h4>
-                <p className="text-[8px] text-on-surface-variant mt-0.5">{movie.year} &middot; {movie.genre}</p>
+                <div className="p-3">
+                  <h4 className="text-xs font-bold uppercase tracking-wider text-white truncate group-hover:text-warm-gold-light transition-colors">{movie.title}</h4>
+                  <p className="text-[10px] text-on-surface-variant mt-1 font-medium">{movie.year} &middot; {movie.genre}</p>
 
-                <div className="flex gap-2 mt-2">
-                  <select value={movie.status || 'watchlist'} onChange={(e) => onUpdateMovieStatus(movie.id, { status: e.target.value })}
-                    onClick={(e) => e.stopPropagation()}
-                    className="flex-1 bg-surface-container-low border border-surface-container-high text-[8px] px-1.5 py-1 text-white cursor-pointer outline-none hover:border-surface-container-high">
-                    <option value="watchlist">Watchlist</option>
-                    <option value="watching">Watching</option>
-                    <option value="watched">Watched</option>
-                  </select>
+                  <div className="mt-3">
+                    <select value={movie.status || 'watchlist'} onChange={(e) => onUpdateMovieStatus(movie.id, { status: e.target.value })}
+                      onClick={(e) => e.stopPropagation()}
+                      className="w-full bg-surface-container-low border border-surface-container-high text-[10px] px-2.5 py-1.5 text-white cursor-pointer outline-none hover:border-surface-container-high rounded-lg transition-colors">
+                      <option value="watchlist">Watchlist</option>
+                      <option value="watching">Watching</option>
+                      <option value="watched">Watched</option>
+                    </select>
+                  </div>
                 </div>
               </div>
             ))}
@@ -246,26 +248,26 @@ export default function MyLibraryView({
           <h3 className="text-xs font-bold uppercase tracking-[0.2em] text-white mb-4">Recently Watched</h3>
           <div className="space-y-3">
             {history.map(item => (
-              <div key={item.id} className="flex items-center gap-4 p-3 bg-surface-container-low border border-surface-container-high hover:border-surface-container-high transition-all group">
-                <div className="w-16 h-24 bg-linear-to-br from-white/10 to-white/5 border border-surface-container-high shrink-0 flex items-center justify-center">
-                  {item.posterUrl && <img src={item.posterUrl} alt={item.title} className="w-full h-full object-cover" />}
+              <div key={item.id} className="flex items-center gap-4 p-4 bg-surface-container-low border border-surface-container-high hover:border-warm-gold/30 rounded-2xl transition-all duration-300 group">
+                <div className="w-20 h-28 rounded-xl bg-surface-container border border-surface-container-high shrink-0 overflow-hidden shadow-lg">
+                  {item.posterUrl && <img src={item.posterUrl} alt={item.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />}
                 </div>
                 <div className="flex-1 min-w-0">
-                  <h4 className="text-xs font-bold uppercase tracking-wider text-white truncate">{item.title}</h4>
-                  <p className="text-[9px] text-on-surface-variant mt-1">{item.watchedAt}</p>
-                  <div className="w-full h-1 bg-surface-container-low mt-2 rounded-full">
-                    <div className="h-full bg-white rounded-full" style={{ width: `${item.progress}%` }} />
+                  <h4 className="text-sm font-bold uppercase tracking-wider text-white truncate group-hover:text-warm-gold-light transition-colors">{item.title}</h4>
+                  <p className="text-[10px] text-on-surface-variant mt-1.5 font-medium">{item.watchedAt}</p>
+                  <div className="w-full h-1.5 bg-surface-container-high mt-3 rounded-full overflow-hidden">
+                    <div className="h-full bg-warm-gold rounded-full transition-all" style={{ width: `${item.progress}%` }} />
                   </div>
                 </div>
-                <div className="flex gap-2 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
+                <div className="flex gap-2 shrink-0 opacity-60 group-hover:opacity-100 transition-opacity">
                   {item.progress < 100 && (
                     <button onClick={() => onReplayMovie(history.find(h => h.id === item.id))}
-                      className="p-2 text-on-surface-variant hover:text-white transition-colors">
+                      className="p-2.5 bg-surface-container-high text-white hover:bg-warm-gold hover:text-on-primary-container transition-all rounded-xl border border-white/10 shadow-lg">
                       <Play className="w-4 h-4" />
                     </button>
                   )}
                   <button onClick={() => onDeleteHistory(item.id)}
-                    className="p-2 text-on-surface-variant hover:text-red-400 transition-colors">
+                    className="p-2.5 bg-surface-container-high text-on-surface-variant hover:text-red-400 hover:border-red-500/30 transition-all rounded-xl border border-white/10 shadow-lg">
                     <X className="w-4 h-4" />
                   </button>
                 </div>

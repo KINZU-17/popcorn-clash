@@ -3,7 +3,7 @@ from flask import request, jsonify, g
 import secrets
 from flask_bcrypt import Bcrypt
 
-from app.database.queries import get_user_by_id, get_admin_user_count, get_banned_user_count
+from app.database.queries import get_user_by_id
 bcrypt = Bcrypt()
 _active_tokens = {}
 

@@ -319,7 +319,7 @@ const Profile = ({ movies = [], collections = [], history = [] }) => {
                 <p className="text-xs text-white/30 font-mono">Loading reviews...</p>
               ) : reviews.length > 0 ? (
                 reviews.map(review => (
-                  <div key={review.id} className="review-card">
+                  <div key={review.id} className="review-card rounded-2xl border border-white/[0.06] bg-surface-container-low p-4 hover:border-warm-gold/30 transition-all duration-300">
                     {editingReviewId === review.id ? (
                       <div className="space-y-3">
                         <h4 className="font-bold text-white text-xs">{review.movieTitle}</h4>
@@ -340,19 +340,19 @@ const Profile = ({ movies = [], collections = [], history = [] }) => {
                         </div>
                       </div>
                     ) : (
-                      <div className="flex items-start gap-3">
-                        {review.posterUrl && <img src={review.posterUrl} alt={review.movieTitle} className="w-10 rounded-lg object-cover" />}
+                      <div className="flex items-start gap-4">
+                        {review.posterUrl && <img src={review.posterUrl} alt={review.movieTitle} className="w-12 h-16 rounded-lg object-cover border border-white/10 shadow-lg shrink-0" />}
                         <div className="flex-1 min-w-0">
-                          <div className="flex justify-between items-center">
+                          <div className="flex justify-between items-start gap-3">
                             <h4 className="font-bold text-white text-xs truncate">{review.movieTitle}</h4>
-                            <div className="flex">{[...Array(5)].map((_, i) => review.rating > i ? <StarIconSolid key={i} className="h-3.5 w-3.5 text-accent-gold" /> : <StarIcon key={i} className="h-3.5 w-3.5 text-white/20" />)}</div>
+                            <div className="flex shrink-0">{[...Array(5)].map((_, i) => review.rating > i ? <StarIconSolid key={i} className="h-3.5 w-3.5 text-accent-gold" /> : <StarIcon key={i} className="h-3.5 w-3.5 text-white/20" />)}</div>
                           </div>
-                          <p className="text-xs text-white/60 mt-1 leading-relaxed">{review.text}</p>
-                          <div className="flex justify-end gap-2 mt-2">
-                            <button onClick={() => handleStartEdit(review)} disabled={editingReviewId !== null} className="p-1 text-white/30 hover:text-white transition-colors cursor-pointer">
+                          <p className="text-xs text-white/60 mt-1.5 leading-relaxed">{review.text}</p>
+                          <div className="flex justify-end gap-1.5 mt-3">
+                            <button onClick={() => handleStartEdit(review)} disabled={editingReviewId !== null} className="p-1.5 text-white/30 hover:text-white hover:bg-white/10 transition-all cursor-pointer rounded-lg border border-transparent hover:border-white/10">
                               <PencilIcon className="h-3.5 w-3.5" />
                             </button>
-                            <button onClick={() => handleDeleteReview(review.id)} disabled={editingReviewId !== null} className="p-1 text-white/30 hover:text-red-400 transition-colors cursor-pointer">
+                            <button onClick={() => handleDeleteReview(review.id)} disabled={editingReviewId !== null} className="p-1.5 text-white/30 hover:text-red-400 hover:bg-red-500/10 transition-all cursor-pointer rounded-lg border border-transparent hover:border-red-500/20">
                               <TrashIcon className="h-3.5 w-3.5" />
                             </button>
                           </div>

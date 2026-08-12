@@ -46,10 +46,10 @@ export default function Leaderboard() {
         const mapped = (leaderboardData.leaderboard || []).map((entry, index) => ({
           rank: index + 1,
           username: entry.username,
-          streak: entry.correct_predictions || 0,
-          correct: entry.correct_predictions || 0,
+          streak: entry.finished_predictions || 0,
+          correct: entry.finished_predictions || 0,
           total: entry.total_predictions || 0,
-          accuracy: entry.total_predictions ? Math.round((entry.correct_predictions / entry.total_predictions) * 100) : 0,
+          accuracy: entry.total_predictions ? Math.round((entry.finished_predictions / entry.total_predictions) * 100) : 0,
           xp: entry.total_xp || 0,
           favorite_club: entry.favorite_club || '',
         }));
@@ -157,13 +157,13 @@ export default function Leaderboard() {
                     </div>
 
                     <div className="flex items-center gap-6 shrink-0">
-                      <div className="text-center">
-                        <div className="flex items-center gap-1 justify-center">
-                          <Star className="w-3.5 h-3.5 text-warm-gold" />
-                          <span className="font-black text-white text-sm">{friend.streak}</span>
+                        <div className="text-center">
+                          <div className="flex items-center gap-1 justify-center">
+                            <Star className="w-3.5 h-3.5 text-warm-gold" />
+                            <span className="font-black text-white text-sm">{friend.streak}</span>
+                          </div>
+                          <div className="text-[9px] uppercase tracking-widest text-on-surface-variant mt-0.5">Finished</div>
                         </div>
-                        <div className="text-[9px] uppercase tracking-widest text-on-surface-variant mt-0.5">Streak</div>
-                      </div>
                       <div className="text-center">
                         <div className="flex items-center gap-1 justify-center">
                           <Star className="w-3.5 h-3.5 text-warm-gold" />
@@ -194,9 +194,9 @@ export default function Leaderboard() {
                     <tr>
                       <th className="px-4 py-3">Rank</th>
                       <th className="px-4 py-3">Predictor</th>
-                      <th className="px-4 py-3 text-center">Streak</th>
-                      <th className="px-4 py-3 text-center">Correct / Total</th>
-                      <th className="px-4 py-3 text-center">Accuracy</th>
+                      <th className="px-4 py-3 text-center">Finished</th>
+                      <th className="px-4 py-3 text-center">Finished / Total</th>
+                      <th className="px-4 py-3 text-center">Finish Rate</th>
                       <th className="px-4 py-3 text-right">XP</th>
                     </tr>
                   </thead>

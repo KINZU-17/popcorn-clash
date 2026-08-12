@@ -223,7 +223,7 @@ export default function CineMatch() {
         username={user?.username || 'Cinephile'}
         streakDays={user?.streak_count || 14}
         userRole={user?.role}
-        userLevel={user?.level || 'Level 1 Cinephile'}
+        userLevel={user?.current_level ? `Level ${user.current_level} Cinephile` : 'Level 1 Cinephile'}
       />
 
       <div className="md:ml-[260px] flex flex-col min-h-screen transition-all duration-300">

@@ -1,4 +1,4 @@
-const API_BASE = import.meta.env.VITE_BACKEND_URL || 'http://localhost:5000';
+import { API_BASE_URL } from '../config';
 const REQUEST_TIMEOUT = 10000;
 
 function fetchWithTimeout(url, options, timeout = REQUEST_TIMEOUT) {
@@ -11,7 +11,7 @@ function fetchWithTimeout(url, options, timeout = REQUEST_TIMEOUT) {
 }
 
 async function request(path, options = {}) {
-  const url = `${API_BASE}${path}`;
+  const url = `${API_BASE_URL}${path}`;
   const headers = {
     'Content-Type': 'application/json',
     ...(options.headers || {}),
@@ -118,6 +118,10 @@ export const api = {
     listUsers: (page = 1, per_page = 10) => {
       return request(`/api/admin/users?page=${page}&per_page=${per_page}`);
     },
+    searchUsers: (query, page = 1, per_page = 10) => {
+      const params = new URLSearchParams({ q: query, page: String(page), per_page: String(per_page) });
+      return request(`/api/admin/users/search?${params.toString()}`);
+    },
     updateUserRole: (id) => request(`/api/admin/users/${id}/role`, { method: 'PATCH' }),
     deleteUser: (id) => request(`/api/admin/users/${id}`, { method: 'DELETE' }),
     banUser: (id, is_banned) => request(`/api/admin/users/${id}/ban`, { method: 'PATCH', body: JSON.stringify({ is_banned }) }),
@@ -127,5 +131,7 @@ export const api = {
     listReviews: (page = 1, per_page = 10) => request(`/api/admin/reviews?page=${page}&per_page=${per_page}`),
     listFixtures: (page = 1, per_page = 10) => request(`/api/admin/fixtures?page=${page}&per_page=${per_page}`),
     getLogs: () => request('/api/admin/logs'),
+    getRecentActivity: () => request('/api/admin/activity/recent'),
+    cleanupPasswordResets: () => request('/api/admin/password-resets/cleanup', { method: 'DELETE' }),
   },
 };

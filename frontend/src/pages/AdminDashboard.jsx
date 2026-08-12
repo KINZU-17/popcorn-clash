@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { api } from '../utils/backendApi';
-import { Shield, Users, Film, Star, Calendar, Trash2, ShieldAlert, CheckCircle, RefreshCw, FileText } from 'lucide-react';
+import { Shield, Users, Film, Star, Calendar, Trash2, RefreshCw, FileText, Ban, Activity, Vote, Trophy } from 'lucide-react';
 
 export default function AdminDashboard() {
   const [activeTab, setActiveTab] = useState('users');
@@ -21,6 +21,24 @@ export default function AdminDashboard() {
   const [fixturePagination, setFixturePagination] = useState(null);
   const [logs, setLogs] = useState([]);
   const [logsLoading, setLogsLoading] = useState(false);
+  const [recentActivity, setRecentActivity] = useState(null);
+  const [activityLoading, setActivityLoading] = useState(false);
+
+  const fetchRecentActivity = async () => {
+    setActivityLoading(true);
+    try {
+      const res = await api.admin.getRecentActivity();
+      setRecentActivity(res);
+    } catch (err) {
+      setError(err.message || 'Failed to load recent activity');
+    } finally {
+      setActivityLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (activeTab === 'activity') fetchRecentActivity();
+  }, [activeTab]);
 
   const fetchData = async () => {
     setLoading(true);
@@ -79,10 +97,9 @@ export default function AdminDashboard() {
   };
 
   const handleToggleRole = async (user) => {
-    const newRole = user.role === 'admin' ? 'member' : 'admin';
     try {
       await api.admin.updateUserRole(user.id);
-      await fetchData(); // Refresh data
+      await fetchData();
     } catch (err) {
       alert(err.message || 'Failed to update user role');
     }
@@ -191,6 +208,46 @@ export default function AdminDashboard() {
             <p className="text-2xl font-black">{stats.total_fixtures}</p>
             <p className="text-[10px] text-white/40 mt-1 font-mono">Matchday events</p>
           </div>
+          <div className="glass-card p-5 rounded-2xl border border-white/[0.08]">
+            <div className="flex items-center justify-between mb-2">
+              <Shield className="w-5 h-5 text-amber-400" />
+              <span className="text-[10px] font-mono text-white/40">ADMINS</span>
+            </div>
+            <p className="text-2xl font-black">{stats.total_admin_users}</p>
+            <p className="text-[10px] text-white/40 mt-1 font-mono">Admin accounts</p>
+          </div>
+          <div className="glass-card p-5 rounded-2xl border border-white/[0.08]">
+            <div className="flex items-center justify-between mb-2">
+              <Ban className="w-5 h-5 text-red-400" />
+              <span className="text-[10px] font-mono text-white/40">BANNED</span>
+            </div>
+            <p className="text-2xl font-black">{stats.total_banned_users}</p>
+            <p className="text-[10px] text-white/40 mt-1 font-mono">Suspended users</p>
+          </div>
+          <div className="glass-card p-5 rounded-2xl border border-white/[0.08]">
+            <div className="flex items-center justify-between mb-2">
+              <Activity className="w-5 h-5 text-cyan-400" />
+              <span className="text-[10px] font-mono text-white/40">ACTIVE</span>
+            </div>
+            <p className="text-2xl font-black">{stats.total_active_users}</p>
+            <p className="text-[10px] text-white/40 mt-1 font-mono">Online now</p>
+          </div>
+          <div className="glass-card p-5 rounded-2xl border border-white/[0.08]">
+            <div className="flex items-center justify-between mb-2">
+              <Vote className="w-5 h-5 text-blue-400" />
+              <span className="text-[10px] font-mono text-white/40">PREDICTIONS</span>
+            </div>
+            <p className="text-2xl font-black">{stats.total_predictions}</p>
+            <p className="text-[10px] text-white/40 mt-1 font-mono">Total predictions</p>
+          </div>
+          <div className="glass-card p-5 rounded-2xl border border-white/[0.08]">
+            <div className="flex items-center justify-between mb-2">
+              <Trophy className="w-5 h-5 text-purple-400" />
+              <span className="text-[10px] font-mono text-white/40">TEAMS</span>
+            </div>
+            <p className="text-2xl font-black">{stats.total_teams}</p>
+            <p className="text-[10px] text-white/40 mt-1 font-mono">Teams in database</p>
+          </div>
         </div>
       )}
 
@@ -201,6 +258,7 @@ export default function AdminDashboard() {
           { id: 'movies', label: `Movies (${moviePagination?.total || 0})`, icon: Film },
           { id: 'reviews', label: `Reviews (${reviewPagination?.total || 0})`, icon: Star },
           { id: 'fixtures', label: `Fixtures (${fixtures.length})`, icon: Calendar },
+          { id: 'activity', label: 'Recent Activity', icon: Activity },
           { id: 'logs', label: 'Audit Logs', icon: FileText },
         ].map((tab) => {
           const Icon = tab.icon;
@@ -513,6 +571,59 @@ export default function AdminDashboard() {
                 >
                   Next
                 </button>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Recent Activity Tab */}
+      {activeTab === 'activity' && (
+        <div className="space-y-6">
+          <div className="flex items-center justify-between">
+            <h2 className="text-xl font-bold text-white">Recent Activity</h2>
+            <span className="text-xs text-white/40 font-mono">Online: {recentActivity?.online_user_count || 0}</span>
+          </div>
+          {activityLoading ? (
+            <div className="text-center p-8 font-mono text-white/40">Loading activity...</div>
+          ) : (
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              <div className="glass-card rounded-2xl border border-white/10 p-5">
+                <h3 className="text-sm font-bold text-white mb-3 font-mono uppercase tracking-wider">Newest Users</h3>
+                <div className="space-y-3">
+                  {recentActivity?.recent_users?.length === 0 && <p className="text-xs text-white/40 font-mono">No recent users</p>}
+                  {recentActivity?.recent_users?.map((u) => (
+                    <div key={u.id} className="flex items-center gap-3">
+                      <div className="w-7 h-7 rounded-lg bg-white/10 flex items-center justify-center font-mono text-xs text-white">
+                        {u.username?.charAt(0).toUpperCase() || '?'}
+                      </div>
+                      <div>
+                        <div className="font-bold text-white text-sm">{u.username}</div>
+                        <div className="text-xs text-white/50 font-mono">{u.email}</div>
+                      </div>
+                      <span className={`ml-auto text-[10px] px-2 py-0.5 rounded font-mono ${
+                        u.role === 'admin' ? 'bg-amber-500/20 text-amber-400' : 'bg-white/10 text-white/60'
+                      }`}>{u.role}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+              <div className="glass-card rounded-2xl border border-white/10 p-5">
+                <h3 className="text-sm font-bold text-white mb-3 font-mono uppercase tracking-wider">Latest Reviews</h3>
+                <div className="space-y-3">
+                  {recentActivity?.recent_reviews?.length === 0 && <p className="text-xs text-white/40 font-mono">No recent reviews</p>}
+                  {recentActivity?.recent_reviews?.map((r) => (
+                    <div key={r.id} className="flex items-start gap-3">
+                      <Star className="w-4 h-4 text-amber-400 mt-0.5 flex-shrink-0" />
+                      <div>
+                        <div className="font-bold text-white text-sm">{r.movie_title}</div>
+                        <div className="text-xs text-white/50 font-mono">★ {r.rating}/5</div>
+                        <div className="text-xs text-white/40 mt-1 line-clamp-2">{r.text}</div>
+                      </div>
+                      <span className="ml-auto text-[10px] text-white/30 font-mono">{r.created_at || 'Recently'}</span>
+                    </div>
+                  ))}
+                </div>
               </div>
             </div>
           )}

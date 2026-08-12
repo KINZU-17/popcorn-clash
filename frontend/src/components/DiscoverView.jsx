@@ -106,44 +106,47 @@ export default function DiscoverView({ mode = 'discover', onCreateMovie, searchQ
             <p className="text-xs text-surface-container-high uppercase tracking-widest">No results found</p>
           </div>
         ) : (
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-4">
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-5">
             {movies.map(movie => {
               const isInLibrary = libraryMovieIds.has(String(movie.id));
               return (
-                <div key={movie.id} className="group relative bg-surface-container-low border border-surface-container-high p-2 hover:border-surface-container-high transition-all">
-                  <div className="relative w-full aspect-3/4 bg-linear-to-b from-white/10 to-white/5 border border-surface-container-high mb-2 overflow-hidden flex items-center justify-center">
+                <div key={movie.id} className="group relative rounded-2xl border border-surface-container-high bg-surface-container-low overflow-hidden transition-all duration-300 hover:border-warm-gold/40 hover:shadow-[0_8px_40px_-12px_rgba(217,119,6,0.25)] hover:-translate-y-1">
+                  <div className="relative w-full aspect-[3/4] bg-surface-container border-b border-surface-container-high overflow-hidden">
                     {movie.posterUrl
-                      ? <img src={movie.posterUrl} alt={movie.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
+                      ? <img src={movie.posterUrl} alt={movie.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500 ease-out" />
                       : <Film className="w-12 h-12 text-surface-container-high" />
                     }
-                    <div className="absolute inset-0 bg-surface-container-low opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
-                      <button onClick={() => handlePlay(movie)} className="p-2.5 bg-white text-on-primary-container hover:bg-surface-container-high transition-colors cursor-pointer">
-                        <Play className="w-4 h-4 fill-current" />
+                    <div className="absolute inset-0 bg-gradient-to-t from-surface-container-lowest via-surface-container-lowest/40 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center gap-3">
+                      <button onClick={() => handlePlay(movie)} className="p-3 bg-white text-on-primary-container hover:bg-warm-gold hover:text-on-primary-container transition-all cursor-pointer rounded-full shadow-lg">
+                        <Play className="w-5 h-5 fill-current" />
                       </button>
                       {!isInLibrary && (
                         <button
                           onClick={() => handleAddMovie(movie)}
-                          className="p-2.5 bg-surface-container-high text-white hover:bg-white/30 transition-colors cursor-pointer"
+                          className="p-3 bg-surface-container-high/80 text-white hover:bg-surface-container-high backdrop-blur-sm transition-all cursor-pointer rounded-full border border-white/10 shadow-lg"
                         >
-                          <Plus className="w-4 h-4" />
+                          <Plus className="w-5 h-5" />
                         </button>
                       )}
                     </div>
                     {isInLibrary && (
-                      <div className="absolute top-2 right-2 flex items-center gap-1 bg-emerald-500/20 text-emerald-400 px-1.5 py-0.5 rounded-full border border-emerald-500/30">
-                        <CheckCircle2 className="w-2.5 h-2.5" />
+                      <div className="absolute top-2.5 right-2.5 flex items-center gap-1 bg-emerald-500/90 text-white px-2 py-1 rounded-full backdrop-blur-sm shadow-lg">
+                        <CheckCircle2 className="w-3 h-3" />
                         <span className="text-[8px] font-bold uppercase tracking-wider">Added</span>
                       </div>
                     )}
                     {movie.rating && (
-                    <div className="absolute top-2 left-2 bg-surface-container-low px-1.5 py-0.5 rounded text-[9px] font-mono text-popcorn-gold">
-                      {movie.rating}
+                    <div className="absolute top-2.5 left-2.5 flex items-center gap-1 bg-surface-container-lowest/90 backdrop-blur-sm px-2 py-1 rounded-lg border border-white/10 shadow-lg">
+                      <Star className="w-3 h-3 text-warm-gold fill-warm-gold" />
+                      <span className="text-[10px] font-mono text-white font-bold">{movie.rating}</span>
                     </div>
                     )}
                   </div>
-                  <h4 className="text-[10px] font-bold uppercase tracking-wider text-white truncate">{movie.title}</h4>
-                  <p className="text-[8px] text-on-surface-variant mt-0.5">{movie.year} • {movie.genre}</p>
-                  <p className="text-[8px] text-on-surface-variant mt-1 line-clamp-2">{movie.overview}</p>
+                  <div className="p-3">
+                    <h4 className="text-xs font-bold uppercase tracking-wider text-white truncate group-hover:text-warm-gold-light transition-colors">{movie.title}</h4>
+                    <p className="text-[10px] text-on-surface-variant mt-1 font-medium">{movie.year} • {movie.genre}</p>
+                    <p className="text-[9px] text-on-surface-variant/70 mt-1.5 line-clamp-2 leading-relaxed">{movie.overview}</p>
+                  </div>
                 </div>
               );
             })}
